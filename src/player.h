@@ -42,7 +42,7 @@ struct player_t {
 
 int player_init(struct player_t *player,
                 int is_infinite_loop,
-                char *show_file_path);
+                const char *show_file_path);
 
 bool player_has_next(struct player_t *player);
 

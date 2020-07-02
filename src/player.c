@@ -37,8 +37,8 @@ static char *player_get_audio_file(const char *sequence_file) {
     // sequence_file is already null terminated at call time
     // allocate a larger buffer and assign a file extension
     // this must be freed by the upstream caller
-    size_t len  = strlen(sequence_file);
-    char   *buf = malloc(len + file_ext_len + 1);
+    const size_t len  = strlen(sequence_file);
+    char         *buf = malloc(len + file_ext_len + 1);
 
     if (buf == NULL) {
         return buf;
@@ -56,15 +56,19 @@ static char *player_get_audio_file(const char *sequence_file) {
 }
 
 static int player_load_audio_file(struct player_t *player) {
+    const bool is_single_sequence = player->sequence_files_cnt == 1;
+
+    ALenum err;
+
     // if an AL buffer is already initialized, unload it first
-    if (player->has_al_buffer) {
+    // this is skipped if the player is configured for a single sequence
+    if (player->has_al_buffer && !is_single_sequence) {
         player->has_al_buffer = false;
 
         // unqueue the buffer from the active source
         // otherwise the delete will fail since it is considered in use
         alSourceUnqueueBuffers(player->al_source, 1, &player->current_al_buffer);
 
-        ALenum err;
         if ((err = al_get_error())) {
             al_perror(err, "failed to unqueue previous player buffer from source");
             return 1;
@@ -79,41 +83,44 @@ static int player_load_audio_file(struct player_t *player) {
         }
     }
 
-    const char *current_sequence_file = player->sequence_files[player->sequence_files_cur];
+    // only load the buffer when needed
+    // this enables a single sequence player to retain the buffer between loops
+    if (!player->has_al_buffer) {
+        const char *current_sequence_file = player->sequence_files[player->sequence_files_cur];
 
-    // determine the audio file of the current sequence file
-    // read & buffer its data into memory for OpenAL playback
-    char *audio_file = player_get_audio_file(current_sequence_file);
+        // determine the audio file of the current sequence file
+        // read & buffer its data into memory for OpenAL playback
+        const char *audio_file = player_get_audio_file(current_sequence_file);
 
-    if (audio_file == NULL) {
-        perror("failed to get audio file of current sequence file");
-        return 1;
-    }
+        if (audio_file == NULL) {
+            perror("failed to get audio file of current sequence file");
+            return 1;
+        }
 
-    player->current_al_buffer = alutCreateBufferFromFile(audio_file);
+        player->current_al_buffer = alutCreateBufferFromFile(audio_file);
 
-    // #player_get_audio_file allocates internally
-    // free prior to error checking so it is always freed before exit
-    free(audio_file);
+        // #player_get_audio_file allocates internally
+        // free prior to error checking so it is always freed before exit
+        free(audio_file);
 
-    // test for buffering errors
-    ALenum err;
-    if ((err = al_get_error())) {
-        al_perror(err, "failed to buffer audio file");
-        return 1;
-    }
+        // test for buffering errors
+        if ((err = al_get_error())) {
+            al_perror(err, "failed to buffer audio file");
+            return 1;
+        }
 
-    // only flag has_al_buffer as true if #al_get_error returns ok
-    // otherwise the current_al_buffer value may be invalid but flagged as set
-    player->has_al_buffer = true;
+        // only flag has_al_buffer as true if #al_get_error returns ok
+        // otherwise the current_al_buffer value may be invalid but flagged as set
+        player->has_al_buffer = true;
 
-    // assign the OpenAL to the source
-    // this enables #player_start to simply play the source to start
-    alSourcei(player->al_source, AL_BUFFER, player->current_al_buffer);
+        // assign the OpenAL to the source
+        // this enables #player_start to simply play the source to start
+        alSourcei(player->al_source, AL_BUFFER, player->current_al_buffer);
 
-    if ((err = al_get_error())) {
-        al_perror(err, "failed to assign OpenAL source buffer");
-        return 1;
+        if ((err = al_get_error())) {
+            al_perror(err, "failed to assign OpenAL source buffer");
+            return 1;
+        }
     }
 
     return 0;
@@ -132,7 +139,7 @@ static int player_step(struct player_t *player) {
 
 int player_init(struct player_t *player,
                 int is_infinite_loop,
-                char *show_file_path) {
+                const char *show_file_path) {
     player->is_infinite_loop = is_infinite_loop;
 
     // generate the single OpenAL source
