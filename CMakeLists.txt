@@ -13,7 +13,7 @@ if (APPLE)
     link_directories(/usr/local/lib)
 endif ()
 
-add_executable(libreorama src/main.c src/player.h src/player.c src/err.h src/err.c src/file.c src/file.h)
+add_executable(libreorama src/main.c src/player.h src/player.c src/err.h src/err.c src/file.c src/file.h src/sequence.c src/sequence.h)
 
 if (APPLE)
     target_link_libraries(libreorama liblightorama.a libserialport.a libalut.a)
