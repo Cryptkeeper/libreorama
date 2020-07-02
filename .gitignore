@@ -1,0 +1,21 @@
+# CMake
+CMakeFiles/
+cmake-build-debug/
+cmake_install.cmake
+CMakeCache.txt
+Makefile
+install_manifest.txt
+
+# IDEs
+.idea/
+libreorama.cbp
+
+# Compiled binary
+libreorama
+
+# Test environment
+sequences/
+show.txt
+
+# macOS
+.DS_Store
