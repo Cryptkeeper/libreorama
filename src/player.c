@@ -60,10 +60,19 @@ static int player_load_audio_file(struct player_t *player) {
     if (player->has_al_buffer) {
         player->has_al_buffer = false;
 
+        // unqueue the buffer from the active source
+        // otherwise the delete will fail since it is considered in use
+        alSourceUnqueueBuffers(player->al_source, 1, &player->current_al_buffer);
+
+        ALenum err;
+        if ((err = al_get_error())) {
+            al_perror(err, "failed to unqueue previous player buffer from source");
+            return 1;
+        }
+
         // delete the buffer, freeing the memory
         alDeleteBuffers(1, &player->current_al_buffer);
 
-        ALenum err;
         if ((err = al_get_error())) {
             al_perror(err, "failed to delete previous player buffer");
             return 1;
