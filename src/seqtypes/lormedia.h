@@ -21,28 +21,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef LIBREORAMA_SEQUENCE_H
-#define LIBREORAMA_SEQUENCE_H
+#ifndef LIBREORAMA_LORMEDIA_H
+#define LIBREORAMA_LORMEDIA_H
 
-#include <stddef.h>
 #include <time.h>
 
-#include "seqtypes/lormedia.h"
+int lormedia_sequence_load(const char *sequence_file,
+                           char **audio_file,
+                           struct timespec *step_time);
 
-enum sequence_type_t {
-    SEQUENCE_TYPE_LOR_MEDIA,
-    SEQUENCE_TYPE_FALCON,
-    SEQUENCE_TYPE_UNKNOWN,
-};
-
-char *sequence_type_string(enum sequence_type_t sequence_type);
-
-enum sequence_type_t sequence_type_from_file_extension(const char *file_ext);
-
-typedef int (*sequence_loader_t)(const char *sequence_file,
-                                 char **audio_file,
-                                 struct timespec *step_time);
-
-sequence_loader_t sequence_type_get_loader(enum sequence_type_t sequence_type);
-
-#endif //LIBREORAMA_SEQUENCE_H
+#endif //LIBREORAMA_LORMEDIA_H

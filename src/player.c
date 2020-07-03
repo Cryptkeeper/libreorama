@@ -26,14 +26,60 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "err.h"
 #include "file.h"
 #include "sequence.h"
 
-static char *player_get_audio_file(const char *sequence_file,
-                                   enum sequence_type_t sequence_type) {
-    // todo: read from file using sequence_type?
+static int player_load_sequence_file(struct player_t *player,
+                                     const char *sequence_file,
+                                     char **audio_file,
+                                     struct timespec *step_time,
+                                     enum sequence_type_t *sequence_type) {
+    // locate a the last dot char in the string, if any
+    // this is used to locate the file extension for determing the sequence type
+    const char *dot = strrchr(sequence_file, '.');
+
+    // check dot == current_sequence_file to ignore hidden files such as "~/.lms"
+    if (dot == NULL || dot == sequence_file) {
+        fprintf(stderr, "sequence \"%s\" has no file extension, unable to determine sequence type\n", sequence_file);
+        return 1;
+    }
+
+    *sequence_type = sequence_type_from_file_extension(dot);
+
+    // detect failure to match the file extension to a sequence type
+    // halt playback since otherwise only the audio would be played
+    if (*sequence_type == SEQUENCE_TYPE_UNKNOWN) {
+        fprintf(stderr, "unknown/unsupported sequence file extension: %s\n", dot);
+        return 1;
+    }
+
+    const sequence_loader_t sequence_loader = sequence_type_get_loader(*sequence_type);
+
+    // pass off to whatever function is provided by #sequence_type_get_loader
+    if (sequence_loader(sequence_file, audio_file, step_time)) {
+        // each impl should internally handle errors, but a generic top level error message
+        //  is provided to prevent silent error returns caused by bad loader impls
+        fprintf(stderr, "failed to load sequence file: %s\n", sequence_file);
+        return 1;
+    }
+
+    return 0;
+}
+
+static char *player_get_audio_file_or_fallback(const char *sequence_file,
+                                               const char *audio_file_hint) {
+    // test if audio_file_hint exists before loading
+    // if not, attempt to locate a fallback using a basic pattern
+    if (audio_file_hint == NULL) {
+        fprintf(stderr, "sequence file returned no audio file hint\n");
+    } else if (access(audio_file_hint, F_OK) != -1) {
+        return (char *) audio_file_hint;
+    } else {
+        fprintf(stderr, "audio file hint \"%s\" does not exist!\n", audio_file_hint);
+    }
 
     static const char *file_ext    = ".wav";
     static const int  file_ext_len = 4;
@@ -56,21 +102,16 @@ static char *player_get_audio_file(const char *sequence_file,
     // ensure the string is null terminated
     buf[len + file_ext_len] = 0;
 
-    printf("located audio file: %s\n", buf);
-
     return buf;
 }
 
 static int player_load_audio_file(struct player_t *player,
                                   const char *sequence_file,
-                                  enum sequence_type_t sequence_type) {
-    const bool is_single_sequence = player->sequence_files_cnt == 1;
-
+                                  char *audio_file_hint) {
     ALenum err;
 
     // if an AL buffer is already initialized, unload it first
-    // this is skipped if the player is configured for a single sequence
-    if (player->has_al_buffer && !is_single_sequence) {
+    if (player->has_al_buffer) {
         player->has_al_buffer = false;
 
         // unqueue the buffer from the active source
@@ -91,79 +132,41 @@ static int player_load_audio_file(struct player_t *player,
         }
     }
 
-    // only load the buffer when needed
-    // this enables a single sequence player to retain the buffer between loops
-    if (!player->has_al_buffer) {
-        // determine the audio file of the current sequence file
-        // read & buffer its data into memory for OpenAL playback
-        const char *audio_file = player_get_audio_file(sequence_file, sequence_type);
+    // use #player_get_audio_file_or_fallback to determine if the file exists
+    // if it doesn't, it will internally attempt to locate it at another path
+    char *audio_file_or_fallback = player_get_audio_file_or_fallback(sequence_file, audio_file_hint);
 
-        if (audio_file == NULL) {
-            perror("failed to get audio file of current sequence file");
-            return 1;
-        }
+    printf("using audio file: %s\n", audio_file_or_fallback);
 
-        player->current_al_buffer = alutCreateBufferFromFile(audio_file);
+    player->current_al_buffer = alutCreateBufferFromFile(audio_file_or_fallback);
 
-        // #player_get_audio_file allocates internally
-        // free prior to error checking so it is always freed before exit
-        // fixme: don't free unless allocated by #player_get_audio_file
-        free(audio_file);
-
-        // test for buffering errors
-        if ((err = al_get_error())) {
-            al_perror(err, "failed to buffer audio file");
-            return 1;
-        }
-
-        // only flag has_al_buffer as true if #al_get_error returns ok
-        // otherwise the current_al_buffer value may be invalid but flagged as set
-        player->has_al_buffer = true;
-
-        // assign the OpenAL to the source
-        // this enables #player_start to simply play the source to start
-        alSourcei(player->al_source, AL_BUFFER, player->current_al_buffer);
-
-        if ((err = al_get_error())) {
-            al_perror(err, "failed to assign OpenAL source buffer");
-            return 1;
-        }
+    // audio_file_or_fallback is the audio_file pointer or a newly allocated one
+    // as such, audio_file should always be freed, but audio_file_or_fallback
+    // is only freed if it is not the same pointer as audio_file_hint
+    if (audio_file_or_fallback != audio_file_hint) {
+        free(audio_file_or_fallback);
     }
 
-    return 0;
-}
+    free(audio_file_hint);
 
-static int player_load_sequence_file(struct player_t *player,
-                                     const char *sequence_file,
-                                     struct timespec *step_time,
-                                     enum sequence_type_t *sequence_type) {
-    printf("loading %s\n", sequence_file);
-    
-    // locate a the last dot char in the string, if any
-    // this is used to locate the file extension for determing the sequence type
-    const char *dot = strrchr(sequence_file, '.');
-
-    // check dot == current_sequence_file to ignore hidden files such as "~/.lms"
-    if (dot == NULL || dot == sequence_file) {
-        fprintf(stderr, "sequence file \"%s\" has no file extension, unable to determine sequence type\n", sequence_file);
+    // test for buffering errors
+    if ((err = al_get_error())) {
+        al_perror(err, "failed to buffer audio file");
         return 1;
     }
 
-    *sequence_type = sequence_type_from_file_extension(dot);
+    // only flag has_al_buffer as true if #al_get_error returns ok
+    // otherwise the current_al_buffer value may be invalid but flagged as set
+    player->has_al_buffer = true;
 
-    // detect failure to match the file extension to a sequence type
-    // halt playback since otherwise only the audio would be played
-    if (*sequence_type == SEQUENCE_TYPE_UNKNOWN) {
-        fprintf(stderr, "unknown/unsupported sequence file extension: %s\n", dot);
+    // assign the OpenAL to the source
+    // this enables #player_start to simply play the source to start
+    alSourcei(player->al_source, AL_BUFFER, player->current_al_buffer);
+
+    if ((err = al_get_error())) {
+        al_perror(err, "failed to assign OpenAL source buffer");
         return 1;
     }
-
-    printf("determined sequence type: %s\n", sequence_type_string(*sequence_type));
-
-    // todo: load
-
-    step_time->tv_sec  = 1; // todo
-    step_time->tv_nsec = 0;
 
     return 0;
 }
@@ -238,20 +241,26 @@ int player_start(struct player_t *player) {
     // load the sequence file into memory
     // this will buffer the initial data, and remainder is streamed during updates
     // pass a timespec value that is used to control the playback while loop
+    char                 *audio_file_hint = NULL;
     struct timespec      step_time;
     enum sequence_type_t sequence_type;
 
-    if (player_load_sequence_file(player, current_sequence_file, &step_time, &sequence_type)) {
+    if (player_load_sequence_file(player, current_sequence_file, &audio_file_hint, &step_time, &sequence_type)) {
         return 1;
     }
 
-    // attempt to load audio file using determined sequence type
+    printf("sequence_file: %s\n", current_sequence_file);
+    printf("sequence_type: %s\n", sequence_type_string(sequence_type));
+    printf("audio_file_hint: %s\n", audio_file_hint);
+    printf("step_time: %lds %ldms\n", step_time.tv_sec, step_time.tv_nsec / 1000000);
+
+    // attempt to load audio file provided by determined sequence type
     // this will delegate or fallback internally as needed
-    if (player_load_audio_file(player, current_sequence_file, sequence_type)) {
+    if (player_load_audio_file(player, current_sequence_file, audio_file_hint)) {
         return 1;
     }
 
-    printf("playing %s\n", current_sequence_file);
+    printf("playing...\n");
 
     // notify OpenAL to start source playback
     // OpenAL will automatically stop playback at EOF

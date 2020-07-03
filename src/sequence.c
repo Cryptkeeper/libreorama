@@ -46,3 +46,12 @@ enum sequence_type_t sequence_type_from_file_extension(const char *file_ext) {
         return SEQUENCE_TYPE_UNKNOWN;
     }
 }
+
+sequence_loader_t sequence_type_get_loader(enum sequence_type_t sequence_type) {
+    switch (sequence_type) {
+        case SEQUENCE_TYPE_LOR_MEDIA:
+            return lormedia_sequence_load;
+        default:
+            return NULL;
+    }
+}
