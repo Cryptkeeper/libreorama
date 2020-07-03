@@ -247,6 +247,9 @@ int player_start(struct player_t *player) {
     enum sequence_type_t sequence_type;
 
     if (player_load_sequence_file(player, current_sequence_file, &audio_file_hint, &step_time_ms, &sequence_type)) {
+        // ensure the allocated audio_file_hint buf is freed
+        free(audio_file_hint);
+
         return 1;
     }
 
