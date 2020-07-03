@@ -208,18 +208,15 @@ int player_init(struct player_t *player,
     // see #player_free
     player->sequence_files = freadlines(show_file, &player->sequence_files_cnt);
 
+    // ensure file is closed
+    fclose(show_file);
+
     // test for null result which indicates an error
     // include additional ferror check to prevent silent errors
-    if (player->sequence_files == NULL || ferror(show_file)) {
-        // ensure file is closed
-        fclose(show_file);
-
+    if (player->sequence_files == NULL) {
         perror("failed to read show file");
         return 1;
     }
-
-    // ensure file is closed
-    fclose(show_file);
 
     // test if the show file is empty
     if (player->sequence_files_cnt == 0) {
