@@ -25,7 +25,6 @@
 #define LIBREORAMA_SEQUENCE_H
 
 #include <stddef.h>
-#include <time.h>
 
 #include "seqtypes/lormedia.h"
 
@@ -41,7 +40,7 @@ enum sequence_type_t sequence_type_from_file_extension(const char *file_ext);
 
 typedef int (*sequence_loader_t)(const char *sequence_file,
                                  char **audio_file,
-                                 struct timespec *step_time);
+                                 unsigned long *step_time_ms);
 
 sequence_loader_t sequence_type_get_loader(enum sequence_type_t sequence_type);
 

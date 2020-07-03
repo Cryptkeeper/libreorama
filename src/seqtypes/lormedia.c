@@ -29,14 +29,33 @@
 #include <libxml/tree.h>
 #include <libxml/parser.h>
 
-static xmlNode *xml_find_node(const xmlNode *parent,
-                              const xmlChar *name) {
-    // iterate from the provided parent to each child
+static xmlNode *xml_find_node_next(const xmlNode *root,
+                                   const char *name) {
+    // iterate from the provided element to each next
     // see http://xmlsoft.org/tutorial/ar01s04.html
-    xmlNode *cur = parent;
+    xmlNode *cur = root;
 
     while (cur != NULL) {
-        if (xmlStrEqual(cur->name, name)) {
+        if (xmlStrEqual(cur->name, (const xmlChar *) name)) {
+            return cur;
+        }
+
+        // move forward to next node
+        // this has a search depth of 1 (immediate children only)
+        cur = cur->next;
+    }
+
+    return NULL;
+}
+
+static xmlNode *xml_find_node_child(const xmlNode *parent,
+                                    const char *name) {
+    // iterate from the provided element to each child
+    // see http://xmlsoft.org/tutorial/ar01s04.html
+    xmlNode *cur = parent->children;
+
+    while (cur != NULL) {
+        if (xmlStrEqual(cur->name, (const xmlChar *) name)) {
             return cur;
         }
 
@@ -86,10 +105,9 @@ static char *xml_get_property(const xmlNode *node,
     return copy;
 }
 
-// todo: cleanup
 int lormedia_sequence_load(const char *sequence_file,
                            char **audio_file,
-                           struct timespec *step_time) {
+                           unsigned long *step_time_ms) {
     xmlInitParser();
 
     // implementation is derived from xmlsoft.org example
@@ -101,19 +119,60 @@ int lormedia_sequence_load(const char *sequence_file,
         return 1;
     }
 
-    // the document will have a single root element, named sequence
-    xmlNode *root_element = xmlDocGetRootElement(doc);
-
-    const xmlNode *sequence_element = xml_find_node(root_element, (const xmlChar *) "sequence");
+    // the document will have a single element, named sequence
+    // this assumes it is the 2nd element in the document at root level
+    const xmlNode *root_element     = xmlDocGetRootElement(doc);
+    const xmlNode *sequence_element = xml_find_node_next(root_element, "sequence");
 
     *audio_file = xml_get_property(sequence_element, "musicFilename");
 
+    // find the <channels> element and iterate over each children's children
+    // use the startCentisecond & endCentisecond properties to understand each effects time length
+    // select the lowest value to be used for the step_time
+    // this ensures the program automatically runs at the precision needed
+    const xmlNode *channels_element = xml_find_node_child(sequence_element, "channels");
+
+    xmlNode *channel_node = channels_element->children;
+    xmlNode *effect_node  = NULL;
+
+    while (channel_node != NULL) {
+        if (channel_node->type == XML_ELEMENT_NODE) {
+            // iterate over each child node in channels_child
+            // these are the actual effects entries containing time data
+            effect_node = channel_node->children;
+
+            while (effect_node != NULL) {
+                if (effect_node->type == XML_ELEMENT_NODE) {
+                    char       *start_cs_prop = xml_get_property(effect_node, "startCentisecond");
+                    const long start_cs       = strtol(start_cs_prop, NULL, 10);
+                    free(start_cs_prop);
+
+                    char       *end_cs_prop = xml_get_property(effect_node, "endCentisecond");
+                    const long end_cs       = strtol(end_cs_prop, NULL, 10);
+                    free(end_cs_prop);
+
+                    // test if the difference, in milliseconds, is below
+                    //  the smallest step time threshold
+                    const long current_step_time_ms = (end_cs - start_cs) * 10;
+
+                    if (current_step_time_ms < *step_time_ms) {
+                        *step_time_ms = current_step_time_ms;
+                    }
+                }
+
+                effect_node = effect_node->next;
+            }
+        }
+
+        channel_node = channel_node->next;
+    }
+
     xmlFreeDoc(doc);
 
+    // cleanup parser state, this pairs with #xmlInitParser
+    // it may be a CPU waste to init/cleanup each load call
+    // but this ensures that during playback, there is no wasted memory
     xmlCleanupParser();
-
-    step_time->tv_sec  = 1; // todo
-    step_time->tv_nsec = 0;
 
     return 0;
 }

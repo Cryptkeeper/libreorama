@@ -35,7 +35,7 @@
 static int player_load_sequence_file(struct player_t *player,
                                      const char *sequence_file,
                                      char **audio_file,
-                                     struct timespec *step_time,
+                                     unsigned long *step_time_ms,
                                      enum sequence_type_t *sequence_type) {
     // locate a the last dot char in the string, if any
     // this is used to locate the file extension for determing the sequence type
@@ -59,7 +59,7 @@ static int player_load_sequence_file(struct player_t *player,
     const sequence_loader_t sequence_loader = sequence_type_get_loader(*sequence_type);
 
     // pass off to whatever function is provided by #sequence_type_get_loader
-    if (sequence_loader(sequence_file, audio_file, step_time)) {
+    if (sequence_loader(sequence_file, audio_file, step_time_ms)) {
         // each impl should internally handle errors, but a generic top level error message
         //  is provided to prevent silent error returns caused by bad loader impls
         fprintf(stderr, "failed to load sequence file: %s\n", sequence_file);
@@ -240,19 +240,20 @@ int player_start(struct player_t *player) {
 
     // load the sequence file into memory
     // this will buffer the initial data, and remainder is streamed during updates
-    // pass a timespec value that is used to control the playback while loop
+    // pass a step_time_ms default value of 50ms (20 FPS)
+    // this provides a minimum step time for the program
     char                 *audio_file_hint = NULL;
-    struct timespec      step_time;
+    unsigned long        step_time_ms     = 50;
     enum sequence_type_t sequence_type;
 
-    if (player_load_sequence_file(player, current_sequence_file, &audio_file_hint, &step_time, &sequence_type)) {
+    if (player_load_sequence_file(player, current_sequence_file, &audio_file_hint, &step_time_ms, &sequence_type)) {
         return 1;
     }
 
     printf("sequence_file: %s\n", current_sequence_file);
     printf("sequence_type: %s\n", sequence_type_string(sequence_type));
     printf("audio_file_hint: %s\n", audio_file_hint);
-    printf("step_time: %lds %ldms\n", step_time.tv_sec, step_time.tv_nsec / 1000000);
+    printf("step_time_ms: %lums (%lu FPS)\n", step_time_ms, 1000 / step_time_ms);
 
     // attempt to load audio file provided by determined sequence type
     // this will delegate or fallback internally as needed
@@ -273,6 +274,13 @@ int player_start(struct player_t *player) {
     }
 
     ALint source_state;
+
+    // construct a timespec copy of step_time_ms
+    // this is used by the downstream nanosleep calls
+    struct timespec step_time;
+
+    step_time.tv_sec  = step_time_ms / 1000;
+    step_time.tv_nsec = (long) (step_time_ms % 1000) * 1000000;
 
     while (1) {
         if (player_step(player, sequence_type)) {

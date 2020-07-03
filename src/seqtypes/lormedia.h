@@ -24,10 +24,8 @@
 #ifndef LIBREORAMA_LORMEDIA_H
 #define LIBREORAMA_LORMEDIA_H
 
-#include <time.h>
-
 int lormedia_sequence_load(const char *sequence_file,
                            char **audio_file,
-                           struct timespec *step_time);
+                           unsigned long *step_time_ms);
 
 #endif //LIBREORAMA_LORMEDIA_H
