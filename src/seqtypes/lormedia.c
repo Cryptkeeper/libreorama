@@ -107,7 +107,8 @@ static char *xml_get_property(const xmlNode *node,
 
 int lormedia_sequence_load(const char *sequence_file,
                            char **audio_file,
-                           unsigned long *step_time_ms) {
+                           unsigned long *step_time_ms,
+                           unsigned long *frame_count) {
     xmlInitParser();
 
     // implementation is derived from xmlsoft.org example
@@ -166,6 +167,32 @@ int lormedia_sequence_load(const char *sequence_file,
 
         channel_node = channel_node->next;
     }
+
+    // read the <tracks> element
+    // each child will contain a "totalCentiseconds" property
+    // locate the highest value to be used as a "total sequence duration" value
+    const xmlNode *tracks_element = xml_find_node_child(sequence_element, "tracks");
+    xmlNode       *track_node     = tracks_element->children;
+
+    unsigned long highest_total_cs = 0;
+
+    while (track_node != NULL) {
+        if (track_node->type == XML_ELEMENT_NODE) {
+            char                *total_cs_prop = xml_get_property(track_node, "totalCentiseconds");
+            const unsigned long total_cs       = strtol(total_cs_prop, NULL, 10);
+            free(total_cs_prop);
+
+            if (total_cs > highest_total_cs) {
+                highest_total_cs = total_cs;
+            }
+        }
+
+        track_node = track_node->next;
+    }
+
+    // convert the highest_total_cs value from centiseconds into a frame_count
+    // this used the previously determined step_time as a frame interval time
+    *frame_count = (highest_total_cs * 10) / *step_time_ms;
 
     xmlFreeDoc(doc);
 

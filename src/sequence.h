@@ -40,7 +40,8 @@ enum sequence_type_t sequence_type_from_file_extension(const char *file_ext);
 
 typedef int (*sequence_loader_t)(const char *sequence_file,
                                  char **audio_file,
-                                 unsigned long *step_time_ms);
+                                 unsigned long *step_time_ms,
+                                 unsigned long *frame_count);
 
 sequence_loader_t sequence_type_get_loader(enum sequence_type_t sequence_type);
 

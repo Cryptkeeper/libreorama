@@ -26,6 +26,7 @@
 
 int lormedia_sequence_load(const char *sequence_file,
                            char **audio_file,
-                           unsigned long *step_time_ms);
+                           unsigned long *step_time_ms,
+                           unsigned long *frame_count);
 
 #endif //LIBREORAMA_LORMEDIA_H
