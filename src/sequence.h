@@ -28,6 +28,13 @@
 
 #include "seqtypes/lormedia.h"
 
+struct sequence_t {
+    unsigned long step_time_ms;
+    unsigned long frame_count;
+};
+
+struct sequence_t sequence_init();
+
 enum sequence_type_t {
     SEQUENCE_TYPE_LOR_MEDIA,
     SEQUENCE_TYPE_FALCON,
@@ -39,9 +46,8 @@ char *sequence_type_string(enum sequence_type_t sequence_type);
 enum sequence_type_t sequence_type_from_file_extension(const char *file_ext);
 
 typedef int (*sequence_loader_t)(const char *sequence_file,
-                                 char **audio_file,
-                                 unsigned long *step_time_ms,
-                                 unsigned long *frame_count);
+                                 char **audio_file_hint,
+                                 struct sequence_t *sequence);
 
 sequence_loader_t sequence_type_get_loader(enum sequence_type_t sequence_type);
 

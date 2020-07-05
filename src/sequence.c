@@ -25,6 +25,14 @@
 
 #include <string.h>
 
+struct sequence_t sequence_init() {
+    // pass a step_time_ms default value of 50ms (20 FPS)
+    // this provides a minimum step time for the program
+    return (struct sequence_t) {
+            .step_time_ms = 50
+    };
+}
+
 char *sequence_type_string(enum sequence_type_t sequence_type) {
     switch (sequence_type) {
         case SEQUENCE_TYPE_LOR_MEDIA:

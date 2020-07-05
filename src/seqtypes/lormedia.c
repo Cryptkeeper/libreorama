@@ -106,9 +106,8 @@ static char *xml_get_property(const xmlNode *node,
 }
 
 int lormedia_sequence_load(const char *sequence_file,
-                           char **audio_file,
-                           unsigned long *step_time_ms,
-                           unsigned long *frame_count) {
+                           char **audio_file_hint,
+                           struct sequence_t *sequence) {
     xmlInitParser();
 
     // implementation is derived from xmlsoft.org example
@@ -125,7 +124,7 @@ int lormedia_sequence_load(const char *sequence_file,
     const xmlNode *root_element     = xmlDocGetRootElement(doc);
     const xmlNode *sequence_element = xml_find_node_next(root_element, "sequence");
 
-    *audio_file = xml_get_property(sequence_element, "musicFilename");
+    *audio_file_hint = xml_get_property(sequence_element, "musicFilename");
 
     // find the <channels> element and iterate over each children's children
     // use the startCentisecond & endCentisecond properties to understand each effects time length
@@ -156,8 +155,8 @@ int lormedia_sequence_load(const char *sequence_file,
                     //  the smallest step time threshold
                     const long current_step_time_ms = (end_cs - start_cs) * 10;
 
-                    if (current_step_time_ms < *step_time_ms) {
-                        *step_time_ms = current_step_time_ms;
+                    if (current_step_time_ms < sequence->step_time_ms) {
+                        sequence->step_time_ms = current_step_time_ms;
                     }
                 }
 
@@ -192,7 +191,7 @@ int lormedia_sequence_load(const char *sequence_file,
 
     // convert the highest_total_cs value from centiseconds into a frame_count
     // this used the previously determined step_time as a frame interval time
-    *frame_count = (highest_total_cs * 10) / *step_time_ms;
+    sequence->frame_count = (highest_total_cs * 10) / sequence->step_time_ms;
 
     xmlFreeDoc(doc);
 
