@@ -137,12 +137,39 @@ int lormedia_sequence_load(const char *sequence_file,
 
     while (channel_node != NULL) {
         if (channel_node->type == XML_ELEMENT_NODE) {
+            // append the channel_node to the sequence channels
+            char                *unit_prop = xml_get_property(channel_node, "unit");
+            const unsigned char unit       = strtol(unit_prop, NULL, 10); // fixme: bounds check
+            free(unit_prop);
+
+            char                 *channel_prop = xml_get_property(channel_node, "circuit");
+            const unsigned short channel       = strtol(channel_prop, NULL, 10); // fixme: bounds check
+            free(channel_prop);
+
+            unsigned short channel_index;
+
+            if (sequence_add_index(sequence, unit, channel, &channel_index)) {
+                perror("failed to add index");
+
+                // free current working document
+                xmlFreeDoc(doc);
+
+                // cleanup parser state, this pairs with #xmlInitParser
+                // it may be a CPU waste to init/cleanup each load call
+                // but this ensures that during playback, there is no wasted memory
+                xmlCleanupParser();
+
+                return 1;
+            }
+
             // iterate over each child node in channels_child
             // these are the actual effects entries containing time data
             effect_node = channel_node->children;
 
             while (effect_node != NULL) {
                 if (effect_node->type == XML_ELEMENT_NODE) {
+                    // todo: append data to frame buffer
+
                     char       *start_cs_prop = xml_get_property(effect_node, "startCentisecond");
                     const long start_cs       = strtol(start_cs_prop, NULL, 10);
                     free(start_cs_prop);

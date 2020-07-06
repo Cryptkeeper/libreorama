@@ -30,11 +30,10 @@
 
 #include "err.h"
 #include "file.h"
-#include "sequence.h"
 
-static int player_load_sequence_file(const char *sequence_file,
+static int player_load_sequence_file(struct player_t *player,
+                                     const char *sequence_file,
                                      char **audio_file_hint,
-                                     struct sequence_t *sequence,
                                      enum sequence_type_t *sequence_type) {
     // locate a the last dot char in the string, if any
     // this is used to locate the file extension for determing the sequence type
@@ -58,7 +57,7 @@ static int player_load_sequence_file(const char *sequence_file,
     const sequence_loader_t sequence_loader = sequence_type_get_loader(*sequence_type);
 
     // pass off to whatever function is provided by #sequence_type_get_loader
-    if (sequence_loader(sequence_file, audio_file_hint, sequence)) {
+    if (sequence_loader(sequence_file, audio_file_hint, player->sequence_current)) {
         // each impl should internally handle errors, but a generic top level error message
         //  is provided to prevent silent error returns caused by bad loader impls
         fprintf(stderr, "failed to load sequence file: %s\n", sequence_file);
@@ -234,14 +233,27 @@ bool player_has_next(struct player_t *player) {
 int player_start(struct player_t *player) {
     const char *current_sequence_file = player->sequence_files[player->sequence_files_cur];
 
+    // ready the sequence_current value for loading
+    player->sequence_current = malloc(sizeof(struct sequence_t));
+
+    if (player->sequence_current == NULL) {
+        perror("failed to allocate sequence_t");
+        return 1;
+    }
+
+    memset(player->sequence_current, 0, sizeof(struct sequence_t));
+
+    // pass a step_time_ms default value of 50ms (20 FPS)
+    // this provides a minimum step time for the program
+    player->sequence_current->step_time_ms = 50;
+
     // load the sequence file into memory
     // this will buffer the initial data, and remainder is streamed during updates
-    struct sequence_t    sequence = sequence_init();
     enum sequence_type_t sequence_type;
 
     char *audio_file_hint = NULL;
 
-    if (player_load_sequence_file(current_sequence_file, &audio_file_hint, &sequence, &sequence_type)) {
+    if (player_load_sequence_file(player, current_sequence_file, &audio_file_hint, &sequence_type)) {
         // ensure the allocated audio_file_hint buf is freed
         free(audio_file_hint);
 
@@ -251,8 +263,9 @@ int player_start(struct player_t *player) {
     printf("sequence_file: %s\n", current_sequence_file);
     printf("sequence_type: %s\n", sequence_type_string(sequence_type));
     printf("audio_file_hint: %s\n", audio_file_hint);
-    printf("step_time_ms: %lums (%lu FPS)\n", sequence.step_time_ms, 1000 / sequence.step_time_ms);
-    printf("frame_count: %lu\n", sequence.frame_count);
+    printf("step_time_ms: %lums (%lu FPS)\n", player->sequence_current->step_time_ms, 1000 / player->sequence_current->step_time_ms);
+    printf("frame_count: %lu\n", player->sequence_current->frame_count);
+    printf("channels_count: %d\n", player->sequence_current->channels_count);
 
     // attempt to load audio file provided by determined sequence type
     // this will delegate or fallback internally as needed
@@ -278,8 +291,8 @@ int player_start(struct player_t *player) {
     // this is used by the downstream nanosleep calls
     struct timespec step_time;
 
-    step_time.tv_sec  = sequence.step_time_ms / 1000;
-    step_time.tv_nsec = (long) (sequence.step_time_ms % 1000) * 1000000;
+    step_time.tv_sec  = player->sequence_current->step_time_ms / 1000;
+    step_time.tv_nsec = (long) (player->sequence_current->step_time_ms % 1000) * 1000000;
 
     while (1) {
         if (player_step(player, sequence_type)) {
@@ -308,6 +321,12 @@ int player_start(struct player_t *player) {
             return 1;
         }
     }
+
+    // free the current sequence
+    // this frees any internal allocations and removes dangling pointers
+    sequence_free(player->sequence_current);
+
+    free(player->sequence_current);
 
     // increment at last step to avoid skipping 0 index
     player->sequence_files_cur++;

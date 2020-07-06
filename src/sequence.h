@@ -24,16 +24,25 @@
 #ifndef LIBREORAMA_SEQUENCE_H
 #define LIBREORAMA_SEQUENCE_H
 
-#include <stddef.h>
-
-#include "seqtypes/lormedia.h"
-
-struct sequence_t {
-    unsigned long step_time_ms;
-    unsigned long frame_count;
+struct channel_t {
+    unsigned char  unit;
+    unsigned short channel;
+    unsigned char  *frame_data;
 };
 
-struct sequence_t sequence_init();
+struct sequence_t {
+    unsigned long    step_time_ms;
+    unsigned long    frame_count;
+    unsigned short   channels_count;
+    struct channel_t *channels;
+};
+
+void sequence_free(struct sequence_t *sequence);
+
+int sequence_add_index(struct sequence_t *sequence,
+                       unsigned char unit,
+                       unsigned short channel,
+                       unsigned short *index);
 
 enum sequence_type_t {
     SEQUENCE_TYPE_LOR_MEDIA,

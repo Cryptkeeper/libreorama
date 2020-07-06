@@ -29,15 +29,18 @@
 
 #include <AL/alut.h>
 
+#include "sequence.h"
+
 struct player_t {
-    char   **sequence_files;
-    size_t sequence_files_cnt;
-    size_t sequence_files_cur;
-    ALuint al_source;
-    ALuint current_al_buffer;
+    char              **sequence_files;
+    size_t            sequence_files_cnt;
+    size_t            sequence_files_cur;
+    ALuint            al_source;
+    ALuint            current_al_buffer;
     bool is_infinite_loop: 1;
     bool has_al_source: 1;
     bool has_al_buffer: 1;
+    struct sequence_t *sequence_current;
 };
 
 int player_init(struct player_t *player,

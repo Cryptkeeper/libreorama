@@ -23,14 +23,47 @@
  */
 #include "sequence.h"
 
+#include <stdlib.h>
 #include <string.h>
 
-struct sequence_t sequence_init() {
-    // pass a step_time_ms default value of 50ms (20 FPS)
-    // this provides a minimum step time for the program
-    return (struct sequence_t) {
-            .step_time_ms = 50
+#include "seqtypes/lormedia.h"
+
+void sequence_free(struct sequence_t *sequence) {
+    if (sequence->channels_count > 0) {
+        for (size_t i = 0; i < sequence->channels_count; i++) {
+            free(sequence->channels[i].frame_data);
+        }
+
+        free(sequence->channels);
+
+        // mark as empty to prevent double free bugs
+        sequence->channels_count = 0;
+    }
+}
+
+int sequence_add_index(struct sequence_t *sequence,
+                       unsigned char unit,
+                       unsigned short channel,
+                       unsigned short *index) {
+    struct channel_t *channels = realloc(sequence->channels, sizeof(struct channel_t) * (sequence->channels_count + 1));
+
+    if (channels == NULL) {
+        return 1;
+    }
+
+    sequence->channels = channels;
+    sequence->channels[sequence->channels_count] = (struct channel_t) {
+            .unit = unit,
+            .channel = channel,
+            .frame_data = NULL // todo: alloc
     };
+
+    // write out the previous value before incrementing
+    *index = sequence->channels_count;
+
+    sequence->channels_count++;
+
+    return 0;
 }
 
 char *sequence_type_string(enum sequence_type_t sequence_type) {
