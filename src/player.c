@@ -227,7 +227,7 @@ bool player_has_next(struct player_t *player) {
 
 int player_start(struct player_t *player,
                  player_frame_interrupt_t frame_interrupt,
-                 unsigned char *frame_buf) {
+                 struct frame_buffer_t *frame_buffer) {
     const char *current_sequence_file = player->sequence_files[player->sequence_files_cur];
 
     // ready the current_sequence value for loading

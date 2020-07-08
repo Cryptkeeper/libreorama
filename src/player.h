@@ -30,7 +30,7 @@
 #include <AL/alut.h>
 
 #include "sequence.h"
-#include "types.h"
+#include "frame.h"
 
 struct player_t {
     char   **sequence_files;
@@ -43,8 +43,7 @@ struct player_t {
     bool has_al_buffer: 1;
 };
 
-typedef int (*player_frame_interrupt_t)(frame_index_t frame_index,
-                                        size_t frame_buf_length);
+typedef int (*player_frame_interrupt_t)(void);
 
 int player_init(struct player_t *player,
                 int is_infinite_loop,
@@ -54,7 +53,7 @@ bool player_has_next(struct player_t *player);
 
 int player_start(struct player_t *player,
                  player_frame_interrupt_t frame_interrupt,
-                 unsigned char *frame_buf);
+                 struct frame_buffer_t *frame_buffer);
 
 void player_free(const struct player_t *player);
 

@@ -26,7 +26,7 @@
 
 #include <lightorama/protocol.h>
 
-#include "types.h"
+#include "frame.h"
 
 struct channel_t {
     lor_unit_t    unit;

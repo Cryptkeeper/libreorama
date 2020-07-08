@@ -21,10 +21,27 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef LIBREORAMA_TYPES_H
-#define LIBREORAMA_TYPES_H
+#ifndef LIBREORAMA_FRAME_H
+#define LIBREORAMA_FRAME_H
+
+#include <stddef.h>
 
 typedef unsigned short frame_index_t;
 typedef unsigned char  frame_t;
 
-#endif //LIBREORAMA_TYPES_H
+struct frame_buffer_t {
+    unsigned char *data;
+    size_t        written_length;
+    size_t        max_length;
+};
+
+int frame_buffer_alloc(struct frame_buffer_t *frame_buffer,
+                       size_t initial_length);
+
+int frame_buffer_get_blob(struct frame_buffer_t *frame_buffer,
+                          unsigned char **blob,
+                          size_t blob_length);
+
+int frame_buffer_reset(struct frame_buffer_t *frame_buffer);
+
+#endif //LIBREORAMA_FRAME_H

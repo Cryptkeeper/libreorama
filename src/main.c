@@ -38,9 +38,9 @@ static void print_usage(void) {
     printf("\t-l loop show infinitely (defaults to false)\n");
 }
 
-static unsigned char   frame_buf[4096]; // fixme: add command arg or dynamic buffer resizing?
-static struct sp_port  *serial_port = NULL;
-static struct player_t player;
+static struct sp_port        *serial_port = NULL;
+static struct frame_buffer_t frame_buffer;
+static struct player_t       player;
 
 static enum sp_return sp_init_port(const char *device_name,
                                    int baud_rate) {
@@ -85,13 +85,12 @@ static void handle_exit(void) {
     }
 }
 
-static int handle_frame_interrupt(frame_index_t frame_index,
-                                   size_t frame_data_length) {
-    if (frame_data_length > 0) {
+static int handle_frame_interrupt(void) {
+    if (frame_buffer.written_length > 0) {
         enum sp_return sp_return;
 
         // sp_nonblocking_write returns bytes written when non-error (<0 - SP_OK)
-        if ((sp_return = sp_nonblocking_write(serial_port, frame_buf, frame_data_length)) < SP_OK) {
+        if ((sp_return = sp_nonblocking_write(serial_port, frame_buffer.data, frame_buffer.written_length)) < SP_OK) {
             sp_perror(sp_return, "failed to write frame data to serial port");
             return 1;
         }
@@ -102,9 +101,10 @@ static int handle_frame_interrupt(frame_index_t frame_index,
 
 int main(int argc,
          char **argv) {
-    int  baud_rate        = 19200;
-    char *show_file_path  = "show.txt";
-    bool is_infinite_loop = true;
+    int    baud_rate                   = 19200;
+    char   *show_file_path             = "show.txt";
+    bool   is_infinite_loop            = true;
+    size_t initial_frame_buffer_length = 4096; // todo: expose option
 
     // prefix optstring with : to enable missing option case
     // see "man 3 getopt" for more information
@@ -169,6 +169,15 @@ int main(int argc,
         return 1;
     }
 
+    // initialize the default frame_buffer
+    // this pre-allocates a working block of memory
+    // a zero value (optional) avoids this pre-allocation and instead will
+    //  require frame_buffer to allocate on the fly, increasing CPU but decreasing memory
+    if (frame_buffer_alloc(&frame_buffer, initial_frame_buffer_length)) {
+        perror("failed to allocate initial frame buffer");
+        return 1;
+    }
+
     // initialize player and load show file
     // player_init handles error printing internally
     if (player_init(&player, is_infinite_loop, show_file_path)) {
@@ -182,7 +191,7 @@ int main(int argc,
     while (player_has_next(&player)) {
         // load and buffer the sequence
         // this will internally block for playback
-        if (player_start(&player, handle_frame_interrupt, &frame_buf[0])) {
+        if (player_start(&player, handle_frame_interrupt, &frame_buffer)) {
             return 1;
         }
     }

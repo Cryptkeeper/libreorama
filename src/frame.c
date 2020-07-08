@@ -21,16 +21,23 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef LIBREORAMA_ENCODE_H
-#define LIBREORAMA_ENCODE_H
+#include "frame.h"
 
-#include "err.h"
-#include "sequence.h"
+int frame_buffer_alloc(struct frame_buffer_t *frame_buffer,
+                       size_t initial_length) {
+    return 0;
+}
 
-int encode_sequence_frame(struct frame_buffer_t *frame_buffer,
-                          const struct sequence_t *sequence,
-                          frame_index_t frame_index);
+// frame_buffer_t is backed by a unsigned char *
+// each write requests a blob, which is a subsection of that backing memory allocation
+// #frame_buffer_get_blob ensures each blob is a minimum length, otherwise reallocing the backing memory allocation
+// this ensures each write is safely within bounds (assuming each write is within the defined maximum length)
+int frame_buffer_get_blob(struct frame_buffer_t *frame_buffer,
+                          unsigned char **blob,
+                          size_t blob_length) {
+    return 0;
+}
 
-int encode_reset_frame(struct frame_buffer_t *frame_buffer);
-
-#endif //LIBREORAMA_ENCODE_H
+int frame_buffer_reset(struct frame_buffer_t *frame_buffer) {
+    return 0;
+}

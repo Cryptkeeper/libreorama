@@ -27,11 +27,9 @@
 #include <lightorama/protocol.h>
 #include <lightorama/io.h>
 
-size_t encode_sequence_frame(unsigned char *frame_buf,
-                             const struct sequence_t *sequence,
-                             frame_index_t frame_index) {
-    const unsigned char *frame_buf_init = frame_buf;
-
+int encode_sequence_frame(struct frame_buffer_t *frame_buffer,
+                          const struct sequence_t *sequence,
+                          frame_index_t frame_index) {
     // automatically push heartbeat messages into the frame buffer
     // this is timed for every 500ms, based off the frame index
     if (frame_index % (500 / sequence->step_time_ms) == 0) {
@@ -57,10 +55,10 @@ size_t encode_sequence_frame(unsigned char *frame_buf,
         }
     }
 
-    // return the difference in the pointer as length in bytes
-    return frame_buf - frame_buf_init;
+    return 0;
 }
 
-size_t encode_reset_frame(unsigned char *frame_buf) {
+int encode_reset_frame(struct frame_buffer_t *frame_buffer) {
+    // todo
     return lor_write_unit_action(LOR_UNIT_ID_BROADCAST, LOR_ACTION_UNIT_OFF, frame_buf);
 }
