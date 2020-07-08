@@ -21,17 +21,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include "controller.h"
+#include "encode.h"
 
 #include <lightorama/brightness_curve.h>
 #include <lightorama/protocol.h>
 #include <lightorama/io.h>
 
-// todo: rename encoder?
-
-size_t controller_write_frame(unsigned char *frame_buf,
-                              const struct sequence_t *sequence,
-                              frame_index_t frame_index) {
+size_t encode_sequence_frame(unsigned char *frame_buf,
+                             const struct sequence_t *sequence,
+                             frame_index_t frame_index) {
     const unsigned char *frame_buf_init = frame_buf;
 
     // automatically push heartbeat messages into the frame buffer
@@ -40,14 +38,15 @@ size_t controller_write_frame(unsigned char *frame_buf,
         frame_buf += lor_write_heartbeat(frame_buf);
     }
 
+    // todo: optimize diffing behavior
     for (size_t i = 0; i < sequence->channels_count; i++) {
         struct channel_t *channel = &sequence->channels[i];
         const frame_t    frame    = channel_get_frame(channel, frame_index);
 
         // prevent writing duplicate updates
         // the LOR protocol is stateful and this causes "reset" glithes
-        if (channel->last_frame == frame) {
-            channel->last_frame = frame;
+        if (channel->last_frame_data == frame) {
+            channel->last_frame_data = frame;
 
             // encode the frame data using liblightorama
             lor_brightness_t lor_brightness = lor_brightness_curve_linear((float) frame / 100.0f);
@@ -60,4 +59,8 @@ size_t controller_write_frame(unsigned char *frame_buf,
 
     // return the difference in the pointer as length in bytes
     return frame_buf - frame_buf_init;
+}
+
+size_t encode_reset_frame(unsigned char *frame_buf) {
+    return lor_write_unit_action(LOR_UNIT_ID_BROADCAST, LOR_ACTION_UNIT_OFF, frame_buf);
 }

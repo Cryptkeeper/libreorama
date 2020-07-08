@@ -29,9 +29,8 @@
 #include <unistd.h>
 
 #include "err.h"
+#include "encode.h"
 #include "file.h"
-
-#include "controller.h" // todo: merge into player
 
 static int player_load_sequence_file(struct player_t *player,
                                      const char *sequence_file,
@@ -305,7 +304,7 @@ int player_start(struct player_t *player,
     while (true) {
         // write the current frame index into the frame_buf
         // pass an interrupt call back to the parent
-        const size_t frame_data_length = controller_write_frame(player->frame_buf, player->sequence_current, frame_index);
+        const size_t frame_data_length = encode_sequence_frame(player->frame_buf, player->sequence_current, frame_index);
 
         frame_interrupt(frame_index, frame_data_length);
 
@@ -335,7 +334,11 @@ int player_start(struct player_t *player,
         }
     }
 
-    // todo: reset light output states
+    // encode a reset frame and trigger a final interrupt
+    // this resets any active light output states
+    const size_t frame_data_length = encode_reset_frame(player->frame_buf);
+
+    frame_interrupt(frame_index, frame_data_length);
 
     // free the current sequence
     // this frees any internal allocations and removes dangling pointers

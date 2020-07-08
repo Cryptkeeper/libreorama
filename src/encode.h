@@ -21,14 +21,16 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef LIBREORAMA_CONTROLLER_H
-#define LIBREORAMA_CONTROLLER_H
+#ifndef LIBREORAMA_ENCODE_H
+#define LIBREORAMA_ENCODE_H
 
 #include "err.h"
 #include "sequence.h"
 
-size_t controller_write_frame(unsigned char *frame_buf,
-                              const struct sequence_t *sequence,
-                              frame_index_t frame_index);
+size_t encode_sequence_frame(unsigned char *frame_buf,
+                             const struct sequence_t *sequence,
+                             frame_index_t frame_index);
 
-#endif //LIBREORAMA_CONTROLLER_H
+size_t encode_reset_frame(unsigned char *frame_buf);
+
+#endif //LIBREORAMA_ENCODE_H

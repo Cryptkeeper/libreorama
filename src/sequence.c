@@ -65,7 +65,7 @@ int sequence_add_channel(struct sequence_t *sequence,
             .unit = unit,
             .channel = channel,
             .frame_data = NULL,
-            .last_frame = 0, // todo: const value?
+            .last_frame_data = 0, // todo: const value?
             .frame_data_max_index = 0,
             .frame_data_last_index = 0
     };
