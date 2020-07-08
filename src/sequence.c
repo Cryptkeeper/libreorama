@@ -52,19 +52,17 @@ int sequence_add_channel(struct sequence_t *sequence,
     }
 
     sequence->channels = channels;
-    sequence->channels[sequence->channels_count] = (struct channel_t) {
-            .unit = unit,
-            .channel = channel_i,
-            .frame_data = NULL,
-            .last_frame_data = 0, // todo: const value?
-            .frame_data_max_index = 0,
-            .frame_data_last_index = 0
-    };
+    sequence->channels_count++;
+
+    struct channel_t *new_channel = &channels[sequence->channels_count - 1];
+
+    // initialize the channel using a basic zeroed struct const
+    *new_channel = CHANNEL_EMPTY;
+    new_channel->unit    = unit;
+    new_channel->channel = channel_i;
 
     // update the pointer to the newly allocated channel_t
-    *channel = &sequence->channels[sequence->channels_count];
-
-    sequence->channels_count++;
+    *channel = new_channel;
 
     return 0;
 }

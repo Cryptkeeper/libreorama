@@ -30,12 +30,14 @@
 
 struct channel_t {
     lor_unit_t    unit;
-    lor_channel_t channel; // todo: rename circuit?
+    lor_channel_t channel;
     frame_t       *frame_data;
+    frame_index_t frame_data_count;
+    frame_index_t frame_data_count_max;
     frame_t       last_frame_data;
-    frame_index_t frame_data_max_index; // todo: rename
-    frame_index_t frame_data_last_index; // todo: move inline
 };
+
+extern const struct channel_t CHANNEL_EMPTY;
 
 void channel_free(struct channel_t *channel);
 
