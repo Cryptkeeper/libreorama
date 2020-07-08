@@ -74,7 +74,7 @@ static xmlNode *xml_find_node_child(const xmlNode *parent,
 // returns NULL if the node does not contain the property or malloc fails
 static char *xml_get_property(const xmlNode *node,
                               const char *key) {
-    const xmlChar *value = xmlGetProp(node, (const xmlChar *) key);
+    xmlChar *value = xmlGetProp(node, (const xmlChar *) key);
 
     if (value == NULL) {
         return NULL;
@@ -86,11 +86,8 @@ static char *xml_get_property(const xmlNode *node,
     char         *copy   = malloc(str_len + 1);
 
     if (copy == NULL) {
-        // ensure the allocated xmlChar *string is always freed
-        xmlFree((void *) value);
-
         perror("failed to allocate string buffer in xml_get_property");
-        return NULL;
+        goto xml_get_property_free;
     }
 
     // cast xmlChar back to char
@@ -101,10 +98,22 @@ static char *xml_get_property(const xmlNode *node,
     // explicitly null terminate the string
     copy[str_len] = 0;
 
+    xml_get_property_free:
     // free the allocated xmlChar *string from xmlGetProp
     xmlFree((void *) value);
 
     return copy;
+}
+
+static long xml_get_propertyl(const xmlNode *node,
+                              const char *key) {
+    xmlChar *value = xmlGetProp(node, (const xmlChar *) key);
+    if (value == NULL) {
+        return 0;
+    }
+    const long l = strtol((char *) value, NULL, 10);
+    xmlFree((void *) value);
+    return l;
 }
 
 static int lormedia_get_effect_intensity(const xmlNode *effect_node,
@@ -162,22 +171,15 @@ int lormedia_sequence_load(const char *sequence_file,
     const xmlNode *channels_element = xml_find_node_child(sequence_element, "channels");
 
     xmlNode *channel_node = channels_element->children;
-    xmlNode *effect_node  = NULL;
 
     while (channel_node != NULL) {
         if (channel_node->type == XML_ELEMENT_NODE) {
             // append the channel_node to the sequence channels
-            char             *unit_prop = xml_get_property(channel_node, "unit");
-            const lor_unit_t unit       = strtol(unit_prop, NULL, 10); // fixme: bounds check
-            free(unit_prop);
-
-            char                *channel_prop = xml_get_property(channel_node, "circuit");
-            const lor_channel_t channel       = strtol(channel_prop, NULL, 10); // fixme: bounds check
-            free(channel_prop);
+            const lor_unit_t    unit    = xml_get_propertyl(channel_node, "unit");
+            const lor_channel_t channel = xml_get_propertyl(channel_node, "circuit");
 
             struct channel_t *channel_ptr = NULL;
 
-            // todo: update types
             if (sequence_add_channel(sequence, unit, channel, &channel_ptr)) {
                 perror("failed to add index");
                 return_code = 1;
@@ -186,23 +188,17 @@ int lormedia_sequence_load(const char *sequence_file,
 
             // iterate over each child node in channels_child
             // these are the actual effects entries containing time data
-            effect_node = channel_node->children;
+            xmlNode *effect_node = channel_node->children;
 
             while (effect_node != NULL) {
                 if (effect_node->type == XML_ELEMENT_NODE) {
-                    char       *start_cs_prop = xml_get_property(effect_node, "startCentisecond");
-                    const long start_cs       = strtol(start_cs_prop, NULL, 10);
-                    free(start_cs_prop);
-
-                    char       *end_cs_prop = xml_get_property(effect_node, "endCentisecond");
-                    const long end_cs       = strtol(end_cs_prop, NULL, 10);
-                    free(end_cs_prop);
+                    const long start_cs = xml_get_propertyl(effect_node, "startCentisecond");
+                    const long end_cs   = xml_get_propertyl(effect_node, "endCentisecond");
 
                     // test if the difference, in milliseconds, is below
                     //  the smallest step time threshold
                     const long current_step_time_ms = (end_cs - start_cs) * 10;
 
-                    // fixme: this doesn't work for organic sequences
                     if (current_step_time_ms < sequence->step_time_ms) {
                         sequence->step_time_ms = current_step_time_ms;
                     }
@@ -245,9 +241,7 @@ int lormedia_sequence_load(const char *sequence_file,
 
     while (track_node != NULL) {
         if (track_node->type == XML_ELEMENT_NODE) {
-            char                *total_cs_prop = xml_get_property(track_node, "totalCentiseconds");
-            const unsigned long total_cs       = strtol(total_cs_prop, NULL, 10);
-            free(total_cs_prop);
+            unsigned long total_cs = xml_get_propertyl(track_node, "totalCentiseconds");
 
             if (total_cs > highest_total_cs) {
                 highest_total_cs = total_cs;
