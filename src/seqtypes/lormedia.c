@@ -29,8 +29,6 @@
 #include <libxml/tree.h>
 #include <libxml/parser.h>
 
-#include "../math.h"
-
 static xmlNode *xml_find_node_next(const xmlNode *root,
                                    const char *name) {
     // iterate from the provided element to each next
@@ -118,25 +116,35 @@ static long xml_get_propertyl(const xmlNode *node,
 
 static int lormedia_get_effect_intensity(const xmlNode *effect_node,
                                          unsigned char *effect_intensity) {
-    // attempt to match an instant "intensity" field value
-    char *intensity_prop = xml_get_property(effect_node, "intensity");
-
-    // todo: fade support
-    if (intensity_prop == NULL) {
-        return 1;
+    // instant intensity effect
+    if (xmlHasProp(effect_node, (const xmlChar *) "intensity")) {
+        *effect_intensity = xml_get_propertyl(effect_node, "intensity");
+        return 0;
     }
 
-    // rescale the intensity_prop long value (between 0-100) into a float
-    // clampf to avoid potential overflows from invalid files
+    // intensity fade effect
+    // todo: map fade across several frames
+    if (xmlHasProp(effect_node, (const xmlChar *) "startIntensity")) {
+        *effect_intensity = xml_get_propertyl(effect_node, "startIntensity");
+        return 0;
+    }
+
+    return 1;
+}
+
+static frame_t lormedia_frame_effect_intensity(unsigned char effect_intensity) {
+    // rescale the effect_intensity value (between 0-100) into a float
+    // clamp to avoid potential overflows from invalid files
     // this is scaled against 255 to create a single full byte range
-    const float effect_intensity_f = clampf((float) strtol(intensity_prop, NULL, 10) / 100.0f, 0, 1);
+    float f = (float) effect_intensity / 100.0f;
 
-    *effect_intensity = (unsigned char) (effect_intensity_f * 255);
+    if (f < 0) {
+        f = 0;
+    } else if (f > 1) {
+        f = 1;
+    }
 
-    // free the intensity_prop allocated by #xml_get_property
-    free(intensity_prop);
-
-    return 0;
+    return (frame_t) (f * 255);
 }
 
 // todo: refactor effect naming? use types
@@ -214,13 +222,15 @@ int lormedia_sequence_load(const char *sequence_file,
                         goto lormedia_free;
                     }
 
+                    const frame_t frame = lormedia_frame_effect_intensity(effect_intensity);
+
                     // from start/end_cs_prop (start time in centiseconds), scale against step_time_ms
                     //  to determine the frame_index for this effect_node
                     // this is because effect_nodes may be out of order, or in variable interval
                     const frame_index_t frame_index_start = (start_cs * 10) / sequence->step_time_ms;
                     const frame_index_t frame_index_end   = (end_cs * 10) / sequence->step_time_ms;
 
-                    if (channel_set_frame_data(channel_ptr, frame_index_start, frame_index_end, effect_intensity)) {
+                    if (channel_set_frame_data(channel_ptr, frame_index_start, frame_index_end, frame)) {
                         perror("failed to set frame data");
                         return_code = 1;
                         goto lormedia_free;
