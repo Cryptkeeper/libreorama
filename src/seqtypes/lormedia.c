@@ -108,6 +108,8 @@ static char *xml_get_property(const xmlNode *node,
 int lormedia_sequence_load(const char *sequence_file,
                            char **audio_file_hint,
                            struct sequence_t *sequence) {
+    int return_code = 0;
+
     xmlInitParser();
 
     // implementation is derived from xmlsoft.org example
@@ -116,7 +118,8 @@ int lormedia_sequence_load(const char *sequence_file,
 
     if (doc == NULL) {
         perror("failed to parse XML file");
-        return 1;
+        return_code = 1;
+        goto lormedia_free;
     }
 
     // the document will have a single element, named sequence
@@ -150,16 +153,8 @@ int lormedia_sequence_load(const char *sequence_file,
 
             if (sequence_add_index(sequence, unit, channel, &channel_index)) {
                 perror("failed to add index");
-
-                // free current working document
-                xmlFreeDoc(doc);
-
-                // cleanup parser state, this pairs with #xmlInitParser
-                // it may be a CPU waste to init/cleanup each load call
-                // but this ensures that during playback, there is no wasted memory
-                xmlCleanupParser();
-
-                return 1;
+                return_code = 1;
+                goto lormedia_free;
             }
 
             // iterate over each child node in channels_child
@@ -168,7 +163,14 @@ int lormedia_sequence_load(const char *sequence_file,
 
             while (effect_node != NULL) {
                 if (effect_node->type == XML_ELEMENT_NODE) {
-                    // todo: append data to frame buffer
+                    // todo: get frame data point
+                    unsigned char frame_intensity = 0;
+
+                    if (sequence_frame_data_add(sequence, channel_index, frame_intensity)) {
+                        perror("failed to add frame data");
+                        return_code = 1;
+                        goto lormedia_free;
+                    }
 
                     char       *start_cs_prop = xml_get_property(effect_node, "startCentisecond");
                     const long start_cs       = strtol(start_cs_prop, NULL, 10);
@@ -220,12 +222,15 @@ int lormedia_sequence_load(const char *sequence_file,
     // this used the previously determined step_time as a frame interval time
     sequence->frame_count = (highest_total_cs * 10) / sequence->step_time_ms;
 
-    xmlFreeDoc(doc);
+    lormedia_free:
+    if (doc != NULL) {
+        xmlFreeDoc(doc);
+    }
 
     // cleanup parser state, this pairs with #xmlInitParser
     // it may be a CPU waste to init/cleanup each load call
     // but this ensures that during playback, there is no wasted memory
     xmlCleanupParser();
 
-    return 0;
+    return return_code;
 }

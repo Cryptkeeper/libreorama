@@ -28,6 +28,8 @@ struct channel_t {
     unsigned char  unit;
     unsigned short channel;
     unsigned char  *frame_data;
+    unsigned short frame_data_count;
+    unsigned short frame_data_max_count;
 };
 
 struct sequence_t {
@@ -43,6 +45,12 @@ int sequence_add_index(struct sequence_t *sequence,
                        unsigned char unit,
                        unsigned short channel,
                        unsigned short *index);
+
+int sequence_frame_data_add(struct sequence_t *sequence,
+                            unsigned short index,
+                            unsigned char frame);
+
+int sequence_frame_data_shrink(struct sequence_t *sequence);
 
 enum sequence_type_t {
     SEQUENCE_TYPE_LOR_MEDIA,

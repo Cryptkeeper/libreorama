@@ -64,6 +64,13 @@ static int player_load_sequence_file(struct player_t *player,
         return 1;
     }
 
+    // shrink the sequence before it is passed back to the caller
+    // this minimizes frame_data allocations internally
+    if (sequence_frame_data_shrink(player->sequence_current)) {
+        perror("failed to shrink frame data");
+        return 1;
+    }
+
     return 0;
 }
 
