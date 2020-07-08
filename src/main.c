@@ -85,7 +85,7 @@ static void handle_exit(void) {
     }
 }
 
-static void handle_frame_interrupt(frame_index_t frame_index,
+static int handle_frame_interrupt(frame_index_t frame_index,
                                    size_t frame_data_length) {
     if (frame_data_length > 0) {
         enum sp_return sp_return;
@@ -93,8 +93,11 @@ static void handle_frame_interrupt(frame_index_t frame_index,
         // sp_nonblocking_write returns bytes written when non-error (<0 - SP_OK)
         if ((sp_return = sp_nonblocking_write(serial_port, frame_buf, frame_data_length)) < SP_OK) {
             sp_perror(sp_return, "failed to write frame data to serial port");
+            return 1;
         }
     }
+
+    return 0;
 }
 
 int main(int argc,

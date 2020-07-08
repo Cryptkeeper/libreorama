@@ -43,8 +43,8 @@ struct player_t {
     bool has_al_buffer: 1;
 };
 
-typedef void (*player_frame_interrupt_t)(frame_index_t frame_index,
-                                         size_t frame_buf_length);
+typedef int (*player_frame_interrupt_t)(frame_index_t frame_index,
+                                        size_t frame_buf_length);
 
 int player_init(struct player_t *player,
                 int is_infinite_loop,

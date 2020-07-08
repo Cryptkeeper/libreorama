@@ -175,10 +175,10 @@ int lormedia_sequence_load(const char *sequence_file,
             const lor_channel_t channel       = strtol(channel_prop, NULL, 10); // fixme: bounds check
             free(channel_prop);
 
-            size_t channel_index;
+            struct channel_t *channel_ptr = NULL;
 
             // todo: update types
-            if (sequence_add_channel(sequence, unit, channel, &channel_index)) {
+            if (sequence_add_channel(sequence, unit, channel, &channel_ptr)) {
                 perror("failed to add index");
                 return_code = 1;
                 goto lormedia_free;
@@ -221,7 +221,7 @@ int lormedia_sequence_load(const char *sequence_file,
                     const frame_index_t frame_index_start = (start_cs * 10) / sequence->step_time_ms;
                     const frame_index_t frame_index_end   = (end_cs * 10) / sequence->step_time_ms;
 
-                    if (sequence_frame_data_set(sequence, channel_index, frame_index_start, frame_index_end, effect_intensity)) {
+                    if (channel_set_frame_data(channel_ptr, frame_index_start, frame_index_end, effect_intensity)) {
                         perror("failed to set frame data");
                         return_code = 1;
                         goto lormedia_free;
@@ -229,6 +229,14 @@ int lormedia_sequence_load(const char *sequence_file,
                 }
 
                 effect_node = effect_node->next;
+            }
+
+            // shrink the sequence before it is passed back to the caller
+            // this minimizes frame_data allocations internally
+            if (channel_shrink_frame_data(channel_ptr)) {
+                perror("failed to shrink frame data");
+                return_code = 1;
+                goto lormedia_free;
             }
         }
 

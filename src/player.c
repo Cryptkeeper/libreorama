@@ -65,13 +65,6 @@ static int player_load_sequence_file(struct sequence_t *current_sequence,
         return 1;
     }
 
-    // shrink the sequence before it is passed back to the caller
-    // this minimizes frame_data allocations internally
-    if (sequence_frame_data_shrink(current_sequence)) {
-        perror("failed to shrink frame data");
-        return 1;
-    }
-
     return 0;
 }
 
@@ -298,7 +291,11 @@ int player_start(struct player_t *player,
         // pass an interrupt call back to the parent
         const size_t frame_data_length = encode_sequence_frame(frame_buf, &current_sequence, frame_index);
 
-        frame_interrupt(frame_index, frame_data_length);
+        int frame_interrupt_err;
+        if ((frame_interrupt_err = frame_interrupt(frame_index, frame_data_length))) {
+            fprintf(stderr, "frame interrupt handler returned %d\n", frame_interrupt_err);
+            return frame_interrupt_err;
+        }
 
         // move to next frame for next iteration
         frame_index++;
@@ -330,7 +327,11 @@ int player_start(struct player_t *player,
     // this resets any active light output states
     const size_t frame_data_length = encode_reset_frame(frame_buf);
 
-    frame_interrupt(frame_index, frame_data_length);
+    int frame_interrupt_err;
+    if ((frame_interrupt_err = frame_interrupt(frame_index, frame_data_length))) {
+        fprintf(stderr, "frame interrupt handler returned %d\n", frame_interrupt_err);
+        return frame_interrupt_err;
+    }
 
     // free the current sequence
     // this frees any internal allocations and removes dangling pointers

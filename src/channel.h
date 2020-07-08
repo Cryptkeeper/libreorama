@@ -21,42 +21,32 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef LIBREORAMA_SEQUENCE_H
-#define LIBREORAMA_SEQUENCE_H
+#ifndef LIBREORAMA_CHANNEL_H
+#define LIBREORAMA_CHANNEL_H
 
 #include <lightorama/protocol.h>
 
-#include "channel.h"
 #include "types.h"
 
-struct sequence_t {
-    unsigned short   step_time_ms;
-    frame_index_t    frame_count;
-    size_t           channels_count;
-    struct channel_t *channels;
+struct channel_t {
+    lor_unit_t    unit;
+    lor_channel_t channel; // todo: rename circuit?
+    frame_t       *frame_data;
+    frame_t       last_frame_data;
+    frame_index_t frame_data_max_index; // todo: rename
+    frame_index_t frame_data_last_index; // todo: move inline
 };
 
-void sequence_free(struct sequence_t *sequence);
+void channel_free(struct channel_t *channel);
 
-int sequence_add_channel(struct sequence_t *sequence,
-                         lor_unit_t unit,
-                         lor_channel_t channel_i,
-                         struct channel_t **channel);
+frame_t channel_get_frame(const struct channel_t *channel,
+                          frame_index_t frame_index);
 
-enum sequence_type_t {
-    SEQUENCE_TYPE_LOR_MEDIA,
-    SEQUENCE_TYPE_FALCON,
-    SEQUENCE_TYPE_UNKNOWN,
-};
+int channel_set_frame_data(struct channel_t *channel,
+                           frame_index_t frame_index_start,
+                           frame_index_t frame_index_end,
+                           frame_t frame);
 
-char *sequence_type_string(enum sequence_type_t sequence_type);
+int channel_shrink_frame_data(struct channel_t *channel);
 
-enum sequence_type_t sequence_type_from_file_extension(const char *file_ext);
-
-typedef int (*sequence_loader_t)(const char *sequence_file,
-                                 char **audio_file_hint,
-                                 struct sequence_t *sequence);
-
-sequence_loader_t sequence_type_get_loader(enum sequence_type_t sequence_type);
-
-#endif //LIBREORAMA_SEQUENCE_H
+#endif //LIBREORAMA_CHANNEL_H
