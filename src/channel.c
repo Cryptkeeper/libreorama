@@ -40,21 +40,21 @@ const struct channel_t CHANNEL_EMPTY = (struct channel_t) {
         .has_first_frame_offset = false
 };
 
-frame_t channel_get_frame(const struct channel_t *channel,
-                          frame_index_t frame_index) {
+frame_t *channel_get_frame(const struct channel_t *channel,
+                           frame_index_t frame_index) {
     // prevent read attempts if the current frame_index is
     //  lower than (before) the first frame_index supported by the channel
     // this is important since frame_index_t is unsigned
     //  and the subtraction below could underflow
     if (channel->has_first_frame_offset && frame_index < channel->first_frame_offset) {
-        return 0;
+        return NULL;
     }
 
     const frame_index_t offset_frame_index = frame_index - channel->first_frame_offset;
     if (offset_frame_index >= channel->frame_data_count) {
-        return 0;
+        return NULL;
     } else {
-        return channel->frame_data[offset_frame_index];
+        return &channel->frame_data[offset_frame_index];
     }
 }
 

@@ -29,6 +29,8 @@
 #include <libxml/tree.h>
 #include <libxml/parser.h>
 
+#include <lightorama/brightness_curve.h>
+
 static xmlNode *xml_find_node_next(const xmlNode *root,
                                    const char *name) {
     // iterate from the provided element to each next
@@ -114,37 +116,36 @@ static long xml_get_propertyl(const xmlNode *node,
     return l;
 }
 
-static int lormedia_get_effect_intensity(const xmlNode *effect_node,
-                                         unsigned char *effect_intensity) {
-    // instant intensity effect
-    if (xmlHasProp(effect_node, (const xmlChar *) "intensity")) {
-        *effect_intensity = xml_get_propertyl(effect_node, "intensity");
-        return 0;
+static lor_brightness_t lormedia_get_effect_brightness(unsigned char effect_intensity) {
+    // LMS files use 0-100 for brightness scales
+    // normalize the value and convert to a lor_brightness_t type
+    // lor_brightness_curve_* will internally clamp the normal
+    return lor_brightness_curve_linear((float) effect_intensity / 100.0f);
+}
+
+static int lormedia_get_frame(const xmlNode *effect_node,
+                              frame_t *frame) {
+    xmlChar *effect_type = xmlGetProp(effect_node, (const xmlChar *) "type");
+
+    if (effect_node == NULL) {
+        return 1;
     }
 
-    // intensity fade effect
-    // todo: map fade across several frames
-    if (xmlHasProp(effect_node, (const xmlChar *) "startIntensity")) {
-        *effect_intensity = xml_get_propertyl(effect_node, "startIntensity");
-        return 0;
+    if (xmlStrcmp(effect_type, (const xmlChar *) "intensity") == 0) {
+        // intensity effect comes in 2 forms
+        //  1: contains "intensity" property to set the target brightness to
+        //  2: contains "startIntensity" & "endIntensity" properties for fading
+        if (xmlHasProp(effect_node, (const xmlChar *) "intensity")) {
+            const unsigned char intensity = xml_get_propertyl(effect_node, "intensity");
+            *frame = (frame_t) {
+                    .action = LOR_ACTION_CHANNEL_SET_BRIGHTNESS,
+                    .brightness = lormedia_get_effect_brightness(intensity),
+            };
+            return 0;
+        }
     }
 
     return 1;
-}
-
-static frame_t lormedia_frame_effect_intensity(unsigned char effect_intensity) {
-    // rescale the effect_intensity value (between 0-100) into a float
-    // clamp to avoid potential overflows from invalid files
-    // this is scaled against 255 to create a single full byte range
-    float f = (float) effect_intensity / 100.0f;
-
-    if (f < 0) {
-        f = 0;
-    } else if (f > 1) {
-        f = 1;
-    }
-
-    return (frame_t) (f * 255);
 }
 
 // todo: refactor effect naming? use types
@@ -211,19 +212,18 @@ int lormedia_sequence_load(const char *sequence_file,
                         sequence->step_time_ms = current_step_time_ms;
                     }
 
-                    unsigned char effect_intensity = 0;
+                    frame_t frame;
 
-                    if (lormedia_get_effect_intensity(effect_node, &effect_intensity)) {
+                    if (lormedia_get_frame(effect_node, &frame)) {
                         char *type_prop = xml_get_property(effect_node, "type");
-                        fprintf(stderr, "unable to get effect intensity: %s\n", type_prop);
+                        fprintf(stderr, "unable to get effect frame: %s\n", type_prop);
                         free(type_prop);
 
                         return_code = 1;
                         goto lormedia_free;
                     }
 
-                    const frame_t frame = lormedia_frame_effect_intensity(effect_intensity);
-
+                    // todo: move into #get_frame, allow frames across frame indexes
                     // from start/end_cs_prop (start time in centiseconds), scale against step_time_ms
                     //  to determine the frame_index for this effect_node
                     // this is because effect_nodes may be out of order, or in variable interval

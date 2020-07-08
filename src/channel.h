@@ -43,8 +43,8 @@ struct channel_t {
 
 extern const struct channel_t CHANNEL_EMPTY;
 
-frame_t channel_get_frame(const struct channel_t *channel,
-                          frame_index_t frame_index);
+frame_t *channel_get_frame(const struct channel_t *channel,
+                           frame_index_t frame_index);
 
 int channel_set_frame_data(struct channel_t *channel,
                            frame_index_t frame_index_start,

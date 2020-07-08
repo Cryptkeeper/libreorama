@@ -24,10 +24,22 @@
 #ifndef LIBREORAMA_FRAME_H
 #define LIBREORAMA_FRAME_H
 
+#include <stdbool.h>
 #include <stddef.h>
 
+#include <lightorama/protocol.h>
+
+typedef struct frame_t {
+    lor_channel_action_t action;
+    union {
+        lor_brightness_t brightness;
+    };
+} __attribute__((packed)) frame_t;
+
+bool frame_equals(frame_t a,
+                  frame_t b);
+
 typedef unsigned short frame_index_t;
-typedef unsigned char  frame_t;
 
 struct frame_buffer_t {
     unsigned char *data;

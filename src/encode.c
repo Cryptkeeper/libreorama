@@ -25,13 +25,24 @@
 
 #include <stdio.h>
 
-#include <lightorama/brightness_curve.h>
 #include <lightorama/protocol.h>
 #include <lightorama/io.h>
 
 // assumes no individual lor_write_* call will use more than 16 bytes
 //  see https://github.com/Cryptkeeper/liblightorama#memory-allocations
 #define ENCODE_MAXIMUM_BLOB_LENGTH 16
+
+static int encode_frame(unsigned char *blob,
+                        struct channel_t *channel,
+                        frame_t frame) {
+    switch (frame.action) {
+        case LOR_ACTION_CHANNEL_SET_BRIGHTNESS:
+            return lor_write_channel_set_brightness(channel->unit, LOR_CHANNEL_ID, channel->channel - 1, frame.brightness, blob);
+        default:
+            fprintf(stderr, "failed to encode frame, unsupported action: %d", frame.action);
+            return -1;
+    }
+}
 
 int encode_sequence_frame(struct frame_buffer_t *frame_buffer,
                           const struct sequence_t *sequence,
@@ -49,28 +60,33 @@ int encode_sequence_frame(struct frame_buffer_t *frame_buffer,
         frame_buffer->written_length += lor_write_heartbeat(blob);
     }
 
-    // todo: optimize diffing behavior
     for (size_t i = 0; i < sequence->channels_count; i++) {
         struct channel_t *channel = &sequence->channels[i];
-        const frame_t    frame    = channel_get_frame(channel, frame_index);
+        const frame_t    *frame   = channel_get_frame(channel, frame_index);
+
+        if (frame == NULL) {
+            continue;
+        }
 
         // prevent writing duplicate updates
         // the LOR protocol is stateful and this causes "reset" glithes
-        if (channel->last_frame_data != frame) {
-            channel->last_frame_data = frame;
+        if (!frame_equals(*frame, channel->last_frame_data)) {
+            channel->last_frame_data = *frame;
 
             if (frame_buffer_get_blob(frame_buffer, &blob, ENCODE_MAXIMUM_BLOB_LENGTH)) {
                 perror("failed to get frame buffer blob (channel frame)");
                 return 1;
             }
 
-            // encode the frame data using liblightorama
-            lor_brightness_t lor_brightness = lor_brightness_curve_linear((float) frame / 100.0f);
+            int written;
+            if ((written = encode_frame(blob, channel, *frame)) < 0) {
+                // <0 returns indicate internal error
+                return 1;
+            }
 
-            // offset channel by 1 since configurations start at index 1
-            //  but the LOR network protocol starts at index 0
-            frame_buffer->written_length += lor_write_channel_set_brightness(channel->unit, LOR_CHANNEL_ID,
-                                                                             channel->channel - 1, lor_brightness, blob);
+            // move the writer index forward
+            // written may be >=0
+            frame_buffer->written_length += written;
         }
     }
 
@@ -79,6 +95,7 @@ int encode_sequence_frame(struct frame_buffer_t *frame_buffer,
 
 int encode_reset_frame(struct frame_buffer_t *frame_buffer) {
     unsigned char *blob = NULL;
+
     if (frame_buffer_get_blob(frame_buffer, &blob, ENCODE_MAXIMUM_BLOB_LENGTH)) {
         perror("failed to get frame buffer blob (reset)");
         return 1;
