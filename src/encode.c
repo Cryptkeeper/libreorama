@@ -23,17 +23,30 @@
  */
 #include "encode.h"
 
+#include <stdio.h>
+
 #include <lightorama/brightness_curve.h>
 #include <lightorama/protocol.h>
 #include <lightorama/io.h>
 
+// assumes no individual lor_write_* call will use more than 16 bytes
+//  see https://github.com/Cryptkeeper/liblightorama#memory-allocations
+#define ENCODE_MAXIMUM_BLOB_LENGTH 16
+
 int encode_sequence_frame(struct frame_buffer_t *frame_buffer,
                           const struct sequence_t *sequence,
                           frame_index_t frame_index) {
+    unsigned char *blob = NULL;
+
     // automatically push heartbeat messages into the frame buffer
     // this is timed for every 500ms, based off the frame index
     if (frame_index % (500 / sequence->step_time_ms) == 0) {
-        frame_buf += lor_write_heartbeat(frame_buf);
+        if (frame_buffer_get_blob(frame_buffer, &blob, ENCODE_MAXIMUM_BLOB_LENGTH)) {
+            perror("failed to get frame buffer blob (heartbeat)");
+            return 1;
+        }
+
+        frame_buffer->written_length += lor_write_heartbeat(blob);
     }
 
     // todo: optimize diffing behavior
@@ -46,12 +59,18 @@ int encode_sequence_frame(struct frame_buffer_t *frame_buffer,
         if (channel->last_frame_data == frame) {
             channel->last_frame_data = frame;
 
+            if (frame_buffer_get_blob(frame_buffer, &blob, ENCODE_MAXIMUM_BLOB_LENGTH)) {
+                perror("failed to get frame buffer blob (channel frame)");
+                return 1;
+            }
+
             // encode the frame data using liblightorama
             lor_brightness_t lor_brightness = lor_brightness_curve_linear((float) frame / 100.0f);
 
             // offset channel by 1 since configurations start at index 1
             //  but the LOR network protocol starts at index 0
-            frame_buf += lor_write_channel_set_brightness(channel->unit, LOR_CHANNEL_ID, channel->channel - 1, lor_brightness, frame_buf);
+            frame_buffer->written_length += lor_write_channel_set_brightness(channel->unit, LOR_CHANNEL_ID,
+                                                                             channel->channel - 1, lor_brightness, blob);
         }
     }
 
@@ -59,6 +78,13 @@ int encode_sequence_frame(struct frame_buffer_t *frame_buffer,
 }
 
 int encode_reset_frame(struct frame_buffer_t *frame_buffer) {
-    // todo
-    return lor_write_unit_action(LOR_UNIT_ID_BROADCAST, LOR_ACTION_UNIT_OFF, frame_buf);
+    unsigned char *blob = NULL;
+    if (frame_buffer_get_blob(frame_buffer, &blob, ENCODE_MAXIMUM_BLOB_LENGTH)) {
+        perror("failed to get frame buffer blob (reset)");
+        return 1;
+    }
+
+    frame_buffer->written_length += lor_write_unit_action(LOR_UNIT_ID_BROADCAST, LOR_ACTION_UNIT_OFF, blob);
+
+    return 0;
 }

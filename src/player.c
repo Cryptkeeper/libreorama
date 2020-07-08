@@ -65,6 +65,13 @@ static int player_load_sequence_file(struct sequence_t *current_sequence,
         return 1;
     }
 
+    // shrink the sequence before it is passed back to the caller
+    // this minimizes & merges frame_data allocations internally
+    if (sequence_merge_frame_data(current_sequence)) {
+        perror("failed to merge sequence frame data");
+        return 1;
+    }
+
     return 0;
 }
 
@@ -255,7 +262,7 @@ int player_start(struct player_t *player,
     printf("audio_file_hint: %s\n", audio_file_hint);
     printf("step_time_ms: %dms (%d FPS)\n", current_sequence.step_time_ms, 1000 / current_sequence.step_time_ms);
     printf("frame_count: %d\n", current_sequence.frame_count);
-    printf("channels_count: %lu\n", current_sequence.channels_count);
+    printf("channels_count: %zu\n", current_sequence.channels_count);
 
     // attempt to load audio file provided by determined sequence type
     // this will delegate or fallback internally as needed

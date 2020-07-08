@@ -34,6 +34,7 @@ struct sequence_t {
     frame_index_t    frame_count;
     size_t           channels_count;
     struct channel_t *channels;
+    frame_t          *merged_frame_data;
 };
 
 void sequence_free(struct sequence_t *sequence);
@@ -42,6 +43,8 @@ int sequence_add_channel(struct sequence_t *sequence,
                          lor_unit_t unit,
                          lor_channel_t channel_i,
                          struct channel_t **channel);
+
+int sequence_merge_frame_data(struct sequence_t *sequence);
 
 enum sequence_type_t {
     SEQUENCE_TYPE_LOR_MEDIA,

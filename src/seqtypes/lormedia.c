@@ -230,14 +230,6 @@ int lormedia_sequence_load(const char *sequence_file,
 
                 effect_node = effect_node->next;
             }
-
-            // shrink the sequence before it is passed back to the caller
-            // this minimizes frame_data allocations internally
-            if (channel_shrink_frame_data(channel_ptr)) {
-                perror("failed to shrink frame data");
-                return_code = 1;
-                goto lormedia_free;
-            }
         }
 
         channel_node = channel_node->next;

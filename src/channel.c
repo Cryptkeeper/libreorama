@@ -27,7 +27,7 @@
 #include <string.h>
 
 #define CHANNEL_FRAME_DATA_COUNT_DEFAULT 512
-#define CHANNEL_FRAME_DATA_COUNT_SCALE 2
+#define CHANNEL_FRAME_DATA_COUNT_GROW_SCALE 2
 
 const struct channel_t CHANNEL_EMPTY = (struct channel_t) {
         .unit = 0,
@@ -37,18 +37,6 @@ const struct channel_t CHANNEL_EMPTY = (struct channel_t) {
         .frame_data_count_max = 0,
         .last_frame_data = 0
 };
-
-void channel_free(struct channel_t *channel) {
-    if (channel->frame_data != NULL) {
-        free(channel->frame_data);
-
-        // remove dangling pointer and index values
-        // this prevents out of bounds iterations or double free bugs
-        channel->frame_data_count     = 0;
-        channel->frame_data_count_max = 0;
-        channel->frame_data           = NULL;
-    }
-}
 
 frame_t channel_get_frame(const struct channel_t *channel,
                           frame_index_t frame_index) {
@@ -76,7 +64,7 @@ int channel_set_frame_data(struct channel_t *channel,
             // default to a frame_data allocation of N frames
             resized_count_max = CHANNEL_FRAME_DATA_COUNT_DEFAULT;
         } else {
-            resized_count_max *= CHANNEL_FRAME_DATA_COUNT_SCALE;
+            resized_count_max *= CHANNEL_FRAME_DATA_COUNT_GROW_SCALE;
         }
 
         frame_t *frame_data = realloc(channel->frame_data, sizeof(frame_t) * resized_count_max);
@@ -86,10 +74,10 @@ int channel_set_frame_data(struct channel_t *channel,
         }
 
         // ensure the newly allocated memory portion is zeroed
-        // offset from frame_data + previous max index in bytes to avoid clearing previous data
-        const frame_index_t frame_index_diff = resized_count_max - channel->frame_data_count_max;
+        // offset from frame_data + previous max count in bytes to avoid clearing previous data
+        const frame_index_t frame_count_diff = resized_count_max - channel->frame_data_count_max;
 
-        memset(frame_data + (sizeof(frame_t) * channel->frame_data_count_max), 0, sizeof(frame_t) * frame_index_diff);
+        memset(frame_data + (sizeof(frame_t) * channel->frame_data_count_max), 0, sizeof(frame_t) * frame_count_diff);
 
         // adjust dangling pointers and update ceiling value
         channel->frame_data           = frame_data;
@@ -108,19 +96,3 @@ int channel_set_frame_data(struct channel_t *channel,
     return 0;
 }
 
-int channel_shrink_frame_data(struct channel_t *channel) {
-    // resize frame_data of channel_t to perfectly fit the final frame data
-    // this trims any oversized buffers by #channel_set_frame_data
-    if (channel->frame_data_count < channel->frame_data_count_max) {
-        // todo: allocate memory in neighboring blocks to prevent memory read jumps
-        frame_t *frame_data = realloc(channel->frame_data, sizeof(frame_t) * channel->frame_data_count);
-        if (frame_data == NULL) {
-            return 1;
-        }
-
-        channel->frame_data           = frame_data;
-        channel->frame_data_count_max = channel->frame_data_count;
-    }
-
-    return 0;
-}

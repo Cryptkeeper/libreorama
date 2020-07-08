@@ -39,8 +39,6 @@ struct channel_t {
 
 extern const struct channel_t CHANNEL_EMPTY;
 
-void channel_free(struct channel_t *channel);
-
 frame_t channel_get_frame(const struct channel_t *channel,
                           frame_index_t frame_index);
 
@@ -48,7 +46,5 @@ int channel_set_frame_data(struct channel_t *channel,
                            frame_index_t frame_index_start,
                            frame_index_t frame_index_end,
                            frame_t frame);
-
-int channel_shrink_frame_data(struct channel_t *channel);
 
 #endif //LIBREORAMA_CHANNEL_H

@@ -36,6 +36,7 @@ static void print_usage(void) {
     printf("\t-b <serial port baud rate> (defaults to 19200)\n");
     printf("\t-f <show file path> (defaults to \"show.txt\")\n");
     printf("\t-l loop show infinitely (defaults to false)\n");
+    printf("\t-p pre-allocated frame buffer length (defaults to 0 bytes)\n");
 }
 
 static struct sp_port        *serial_port = NULL;
@@ -92,11 +93,20 @@ static int handle_frame_interrupt(void) {
     if (frame_buffer.written_length > 0) {
         enum sp_return sp_return;
 
+        // todo: feed in timeout_ms using step_time_ms
+
         // sp_nonblocking_write returns bytes written when non-error (<0 - SP_OK)
-        if ((sp_return = sp_nonblocking_write(serial_port, frame_buffer.data, frame_buffer.written_length)) < SP_OK) {
+        if ((sp_return = sp_blocking_write(serial_port, frame_buffer.data, frame_buffer.written_length, 20)) < SP_OK) {
             sp_perror(sp_return, "failed to write frame data to serial port");
             return 1;
         }
+    }
+
+    // reset the frame buffer writer back to 0
+    // always fire regardless of written_length so that it may sample 0 values
+    // this may internally downsize the backing memory block as needed
+    if (frame_buffer_reset(&frame_buffer)) {
+        return 1;
     }
 
     return 0;
@@ -107,12 +117,12 @@ int main(int argc,
     int    baud_rate                   = 19200;
     char   *show_file_path             = "show.txt";
     bool   is_infinite_loop            = true;
-    size_t initial_frame_buffer_length = 4096; // todo: expose option
+    size_t initial_frame_buffer_length = 0;
 
     // prefix optstring with : to enable missing option case
     // see "man 3 getopt" for more information
     int c;
-    while ((c = getopt(argc, argv, ":hb:f:l")) != -1) {
+    while ((c = getopt(argc, argv, ":hb:f:lp:")) != -1) {
         switch (c) {
             case 'h':
                 print_usage();
@@ -141,6 +151,9 @@ int main(int argc,
             }
             case 'l':
                 is_infinite_loop = true;
+                break;
+            case 'p':
+                initial_frame_buffer_length = strtol(optarg, NULL, 10);
                 break;
         }
     }
@@ -180,7 +193,10 @@ int main(int argc,
     //  require frame_buffer to allocate on the fly, increasing CPU but decreasing memory
     if (initial_frame_buffer_length > 0) {
         if (frame_buffer_alloc(&frame_buffer, initial_frame_buffer_length)) {
+            perror("failed to pre-allocate initial frame buffer");
             return 1;
+        } else {
+            printf("pre-allocated frame buffer of %zu bytes\n", initial_frame_buffer_length);
         }
     }
 
