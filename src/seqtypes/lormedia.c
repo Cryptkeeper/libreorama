@@ -206,7 +206,10 @@ int lormedia_sequence_load(const char *sequence_file,
                     unsigned char effect_intensity = 0;
 
                     if (lormedia_get_effect_intensity(effect_node, &effect_intensity)) {
-                        fprintf(stderr, "unable to get effect intensity: %s\n", effect_node->name);
+                        char *type_prop = xml_get_property(effect_node, "type");
+                        fprintf(stderr, "unable to get effect intensity: %s\n", type_prop);
+                        free(type_prop);
+
                         return_code = 1;
                         goto lormedia_free;
                     }
@@ -241,7 +244,7 @@ int lormedia_sequence_load(const char *sequence_file,
 
     while (track_node != NULL) {
         if (track_node->type == XML_ELEMENT_NODE) {
-            unsigned long total_cs = xml_get_propertyl(track_node, "totalCentiseconds");
+            const unsigned long total_cs = xml_get_propertyl(track_node, "totalCentiseconds");
 
             if (total_cs > highest_total_cs) {
                 highest_total_cs = total_cs;
@@ -256,9 +259,7 @@ int lormedia_sequence_load(const char *sequence_file,
     sequence->frame_count = (highest_total_cs * 10) / sequence->step_time_ms;
 
     lormedia_free:
-    if (doc != NULL) {
-        xmlFreeDoc(doc);
-    }
+    xmlFreeDoc(doc);
 
     // cleanup parser state, this pairs with #xmlInitParser
     // it may be a CPU waste to init/cleanup each load call

@@ -35,15 +35,26 @@ const struct channel_t CHANNEL_EMPTY = (struct channel_t) {
         .frame_data = NULL,
         .frame_data_count = 0,
         .frame_data_count_max = 0,
-        .last_frame_data = 0
+        .last_frame_data = 0,
+        .first_frame_offset = 0,
+        .has_first_frame_offset = false
 };
 
 frame_t channel_get_frame(const struct channel_t *channel,
                           frame_index_t frame_index) {
-    if (frame_index >= channel->frame_data_count) {
+    // prevent read attempts if the current frame_index is
+    //  lower than (before) the first frame_index supported by the channel
+    // this is important since frame_index_t is unsigned
+    //  and the subtraction below could underflow
+    if (channel->has_first_frame_offset && frame_index < channel->first_frame_offset) {
+        return 0;
+    }
+
+    const frame_index_t offset_frame_index = frame_index - channel->first_frame_offset;
+    if (offset_frame_index >= channel->frame_data_count) {
         return 0;
     } else {
-        return channel->frame_data[frame_index];
+        return channel->frame_data[offset_frame_index];
     }
 }
 
@@ -51,6 +62,20 @@ int channel_set_frame_data(struct channel_t *channel,
                            frame_index_t frame_index_start,
                            frame_index_t frame_index_end,
                            frame_t frame) {
+    // if this is the first frame of the channel, offset indexes by frame_index_start
+    // this prevents padding allocations for later used channels
+    if (!channel->has_first_frame_offset) {
+        channel->has_first_frame_offset = true;
+        channel->first_frame_offset     = frame_index_start;
+    }
+
+    // offset incoming frame index values
+    // this aligns first_frame_offset with 0
+    if (channel->has_first_frame_offset) {
+        frame_index_start -= channel->first_frame_offset;
+        frame_index_end -= channel->first_frame_offset;
+    }
+
     // frame_index_start & frame_index_end represent an array of the same value
     // ensure the full block fits within the current allocated frame_data
     // otherwise, resize the array to ensure frame_index_end fits in it
@@ -77,7 +102,7 @@ int channel_set_frame_data(struct channel_t *channel,
         // offset from frame_data + previous max count in bytes to avoid clearing previous data
         const frame_index_t frame_count_diff = resized_count_max - channel->frame_data_count_max;
 
-        memset(frame_data + (sizeof(frame_t) * channel->frame_data_count_max), 0, sizeof(frame_t) * frame_count_diff);
+        memset(frame_data + channel->frame_data_count_max, 0, frame_count_diff);
 
         // adjust dangling pointers and update ceiling value
         channel->frame_data           = frame_data;

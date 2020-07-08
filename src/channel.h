@@ -24,6 +24,8 @@
 #ifndef LIBREORAMA_CHANNEL_H
 #define LIBREORAMA_CHANNEL_H
 
+#include <stdbool.h>
+
 #include <lightorama/protocol.h>
 
 #include "frame.h"
@@ -35,6 +37,8 @@ struct channel_t {
     frame_index_t frame_data_count;
     frame_index_t frame_data_count_max;
     frame_t       last_frame_data;
+    frame_index_t first_frame_offset;
+    bool has_first_frame_offset;
 };
 
 extern const struct channel_t CHANNEL_EMPTY;
