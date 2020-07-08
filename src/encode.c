@@ -38,8 +38,11 @@ static int encode_frame(unsigned char *blob,
     switch (frame.action) {
         case LOR_ACTION_CHANNEL_SET_BRIGHTNESS:
             return lor_write_channel_set_brightness(channel->unit, LOR_CHANNEL_ID, channel->channel - 1, frame.brightness, blob);
+        case LOR_ACTION_CHANNEL_SHIMMER:
+        case LOR_ACTION_CHANNEL_TWINKLE:
+            return lor_write_channel_action(channel->unit, LOR_CHANNEL_ID, channel->channel - 1, frame.action, blob);
         default:
-            fprintf(stderr, "failed to encode frame, unsupported action: %d", frame.action);
+            fprintf(stderr, "failed to encode frame, unsupported action: %d\n", frame.action);
             return -1;
     }
 }

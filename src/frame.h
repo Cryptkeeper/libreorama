@@ -30,6 +30,7 @@
 #include <lightorama/protocol.h>
 
 typedef struct frame_t {
+    bool                 has_metadata: 1;
     lor_channel_action_t action;
     union {
         lor_brightness_t brightness;

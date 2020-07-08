@@ -54,7 +54,15 @@ frame_t *channel_get_frame(const struct channel_t *channel,
     if (offset_frame_index >= channel->frame_data_count) {
         return NULL;
     } else {
-        return &channel->frame_data[offset_frame_index];
+        struct frame_t *frame = &channel->frame_data[offset_frame_index];
+
+        // do not return empty frames
+        // these are simply allocated, but do not contain metadata
+        if (!frame->has_metadata) {
+            return NULL;
+        } else {
+            return frame;
+        }
     }
 }
 

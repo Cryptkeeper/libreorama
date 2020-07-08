@@ -123,12 +123,12 @@ static lor_brightness_t lormedia_get_effect_brightness(unsigned char effect_inte
     return lor_brightness_curve_linear((float) effect_intensity / 100.0f);
 }
 
-static int lormedia_get_frame(const xmlNode *effect_node,
-                              frame_t *frame) {
+static bool lormedia_get_frame(const xmlNode *effect_node,
+                               frame_t *frame) {
     xmlChar *effect_type = xmlGetProp(effect_node, (const xmlChar *) "type");
 
     if (effect_node == NULL) {
-        return 1;
+        return false;
     }
 
     if (xmlStrcmp(effect_type, (const xmlChar *) "intensity") == 0) {
@@ -137,18 +137,49 @@ static int lormedia_get_frame(const xmlNode *effect_node,
         //  2: contains "startIntensity" & "endIntensity" properties for fading
         if (xmlHasProp(effect_node, (const xmlChar *) "intensity")) {
             const unsigned char intensity = xml_get_propertyl(effect_node, "intensity");
+
             *frame = (frame_t) {
+                    .has_metadata = true,
                     .action = LOR_ACTION_CHANNEL_SET_BRIGHTNESS,
                     .brightness = lormedia_get_effect_brightness(intensity),
             };
-            return 0;
+
+            return true;
         }
+
+        if (xmlHasProp(effect_node, (const xmlChar *) "startIntensity") && xmlHasProp(effect_node, (const xmlChar *) "endIntensity")) {
+            const unsigned char startIntensity = xml_get_propertyl(effect_node, "startIntensity");
+            const unsigned char endIntensity   = xml_get_propertyl(effect_node, "endIntensity");
+
+            *frame = (frame_t) { // fixme: fading
+                    .has_metadata = true,
+                    .action = LOR_ACTION_CHANNEL_SET_BRIGHTNESS,
+                    .brightness = lormedia_get_effect_brightness(startIntensity),
+            };
+
+            return true;
+        }
+    } else if (xmlStrcmp(effect_type, (const xmlChar *) "shimmer") == 0) {
+        *frame = (frame_t) {
+                .has_metadata = true,
+                .action = LOR_ACTION_CHANNEL_SHIMMER,
+                .brightness = LOR_BRIGHTNESS_MAX
+        };
+
+        return true;
+    } else if (xmlStrcmp(effect_type, (const xmlChar *) "twinkle") == 0) {
+        *frame = (frame_t) {
+                .has_metadata = true,
+                .action = LOR_ACTION_CHANNEL_TWINKLE,
+                .brightness = LOR_BRIGHTNESS_MAX
+        };
+
+        return true;
     }
 
-    return 1;
+    return false;
 }
 
-// todo: refactor effect naming? use types
 int lormedia_sequence_load(const char *sequence_file,
                            char **audio_file_hint,
                            struct sequence_t *sequence) {
@@ -214,7 +245,7 @@ int lormedia_sequence_load(const char *sequence_file,
 
                     frame_t frame;
 
-                    if (lormedia_get_frame(effect_node, &frame)) {
+                    if (!lormedia_get_frame(effect_node, &frame)) {
                         char *type_prop = xml_get_property(effect_node, "type");
                         fprintf(stderr, "unable to get effect frame: %s\n", type_prop);
                         free(type_prop);
