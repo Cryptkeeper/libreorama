@@ -38,6 +38,7 @@ static void print_usage(void) {
     printf("\t-l loop show infinitely (defaults to false)\n");
 }
 
+static unsigned char   frame_buf[4096]; // fixme: add command arg or dynamic buffer resizing?
 static struct sp_port  *serial_port = NULL;
 static struct player_t player;
 
@@ -81,6 +82,18 @@ static void handle_exit(void) {
     ALenum err;
     if ((err = al_get_error())) {
         al_perror(err, "failed to exut ALUT");
+    }
+}
+
+static void handle_frame_interrupt(frame_index_t frame_index,
+                                   size_t frame_data_length) {
+    if (frame_data_length > 0) {
+        enum sp_return sp_return;
+
+        // sp_nonblocking_write returns bytes written when non-error (<0 - SP_OK)
+        if ((sp_return = sp_nonblocking_write(serial_port, frame_buf, frame_data_length)) < SP_OK) {
+            sp_perror(sp_return, "failed to write frame data to serial port");
+        }
     }
 }
 
@@ -155,7 +168,7 @@ int main(int argc,
 
     // initialize player and load show file
     // player_init handles error printing internally
-    if (player_init(&player, is_infinite_loop, show_file_path)) {
+    if (player_init(&player, is_infinite_loop, show_file_path, &frame_buf[0])) {
         return 1;
     }
 
@@ -166,7 +179,7 @@ int main(int argc,
     while (player_has_next(&player)) {
         // load and buffer the sequence
         // this will internally block for playback
-        if (player_start(&player)) {
+        if (player_start(&player, handle_frame_interrupt)) {
             return 1;
         }
     }

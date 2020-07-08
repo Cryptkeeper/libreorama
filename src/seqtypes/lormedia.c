@@ -29,6 +29,8 @@
 #include <libxml/tree.h>
 #include <libxml/parser.h>
 
+#include "../math.h"
+
 static xmlNode *xml_find_node_next(const xmlNode *root,
                                    const char *name) {
     // iterate from the provided element to each next
@@ -108,19 +110,27 @@ static char *xml_get_property(const xmlNode *node,
 static int lormedia_get_effect_intensity(const xmlNode *effect_node,
                                          unsigned char *effect_intensity) {
     // attempt to match an instant "intensity" field value
-    // todo: split fade into multiple frames?
     char *intensity_prop = xml_get_property(effect_node, "intensity");
 
+    // todo: fade support
     if (intensity_prop == NULL) {
         return 1;
     }
 
-    *effect_intensity = strtol(intensity_prop, NULL, 10); // fixme: bounds check
+    // rescale the intensity_prop long value (between 0-100) into a float
+    // clampf to avoid potential overflows from invalid files
+    // this is scaled against 255 to create a single full byte range
+    const float effect_intensity_f = clampf((float) strtol(intensity_prop, NULL, 10) / 100.0f, 0, 1);
+
+    *effect_intensity = (unsigned char) (effect_intensity_f * 255);
+
+    // free the intensity_prop allocated by #xml_get_property
     free(intensity_prop);
 
     return 0;
 }
 
+// todo: refactor effect naming? use types
 int lormedia_sequence_load(const char *sequence_file,
                            char **audio_file_hint,
                            struct sequence_t *sequence) {
@@ -157,17 +167,18 @@ int lormedia_sequence_load(const char *sequence_file,
     while (channel_node != NULL) {
         if (channel_node->type == XML_ELEMENT_NODE) {
             // append the channel_node to the sequence channels
-            char                *unit_prop = xml_get_property(channel_node, "unit");
-            const unsigned char unit       = strtol(unit_prop, NULL, 10); // fixme: bounds check
+            char             *unit_prop = xml_get_property(channel_node, "unit");
+            const lor_unit_t unit       = strtol(unit_prop, NULL, 10); // fixme: bounds check
             free(unit_prop);
 
-            char                 *channel_prop = xml_get_property(channel_node, "circuit");
-            const unsigned short channel       = strtol(channel_prop, NULL, 10); // fixme: bounds check
+            char                *channel_prop = xml_get_property(channel_node, "circuit");
+            const lor_channel_t channel       = strtol(channel_prop, NULL, 10); // fixme: bounds check
             free(channel_prop);
 
-            unsigned short channel_index;
+            size_t channel_index;
 
-            if (sequence_add_index(sequence, unit, channel, &channel_index)) {
+            // todo: update types
+            if (sequence_add_channel(sequence, unit, channel, &channel_index)) {
                 perror("failed to add index");
                 return_code = 1;
                 goto lormedia_free;
@@ -179,20 +190,6 @@ int lormedia_sequence_load(const char *sequence_file,
 
             while (effect_node != NULL) {
                 if (effect_node->type == XML_ELEMENT_NODE) {
-                    unsigned char frame_intensity = 0;
-
-                    if (lormedia_get_effect_intensity(effect_node, &frame_intensity)) {
-                        fprintf(stderr, "unable to get effect intensity: %s\n", effect_node->name);
-                        return_code = 1;
-                        goto lormedia_free;
-                    }
-
-                    if (sequence_frame_data_add(sequence, channel_index, frame_intensity)) {
-                        perror("failed to add frame data");
-                        return_code = 1;
-                        goto lormedia_free;
-                    }
-
                     char       *start_cs_prop = xml_get_property(effect_node, "startCentisecond");
                     const long start_cs       = strtol(start_cs_prop, NULL, 10);
                     free(start_cs_prop);
@@ -205,8 +202,29 @@ int lormedia_sequence_load(const char *sequence_file,
                     //  the smallest step time threshold
                     const long current_step_time_ms = (end_cs - start_cs) * 10;
 
+                    // fixme: this doesn't work for organic sequences
                     if (current_step_time_ms < sequence->step_time_ms) {
                         sequence->step_time_ms = current_step_time_ms;
+                    }
+
+                    unsigned char effect_intensity = 0;
+
+                    if (lormedia_get_effect_intensity(effect_node, &effect_intensity)) {
+                        fprintf(stderr, "unable to get effect intensity: %s\n", effect_node->name);
+                        return_code = 1;
+                        goto lormedia_free;
+                    }
+
+                    // from start/end_cs_prop (start time in centiseconds), scale against step_time_ms
+                    //  to determine the frame_index for this effect_node
+                    // this is because effect_nodes may be out of order, or in variable interval
+                    const frame_index_t frame_index_start = (start_cs * 10) / sequence->step_time_ms;
+                    const frame_index_t frame_index_end   = (end_cs * 10) / sequence->step_time_ms;
+
+                    if (sequence_frame_data_set(sequence, channel_index, frame_index_start, frame_index_end, effect_intensity)) {
+                        perror("failed to set frame data");
+                        return_code = 1;
+                        goto lormedia_free;
                     }
                 }
 

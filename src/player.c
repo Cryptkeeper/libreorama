@@ -31,6 +31,8 @@
 #include "err.h"
 #include "file.h"
 
+#include "controller.h" // todo: merge into player
+
 static int player_load_sequence_file(struct player_t *player,
                                      const char *sequence_file,
                                      char **audio_file_hint,
@@ -176,16 +178,12 @@ static int player_load_audio_file(struct player_t *player,
     return 0;
 }
 
-static int player_step(struct player_t *player,
-                       enum sequence_type_t sequence_type) {
-    // todo: this is going to need some sort of metadata store
-    return 0;
-}
-
 int player_init(struct player_t *player,
                 int is_infinite_loop,
-                const char *show_file_path) {
+                const char *show_file_path,
+                unsigned char *frame_buf) {
     player->is_infinite_loop = is_infinite_loop;
+    player->frame_buf        = frame_buf;
 
     // generate the single OpenAL source
     // this is used for all player playback behavior
@@ -237,7 +235,8 @@ bool player_has_next(struct player_t *player) {
     return player->sequence_files_cur < player->sequence_files_cnt;
 }
 
-int player_start(struct player_t *player) {
+int player_start(struct player_t *player,
+                 player_frame_interrupt_t frame_interrupt) {
     const char *current_sequence_file = player->sequence_files[player->sequence_files_cur];
 
     // ready the sequence_current value for loading
@@ -270,9 +269,9 @@ int player_start(struct player_t *player) {
     printf("sequence_file: %s\n", current_sequence_file);
     printf("sequence_type: %s\n", sequence_type_string(sequence_type));
     printf("audio_file_hint: %s\n", audio_file_hint);
-    printf("step_time_ms: %lums (%lu FPS)\n", player->sequence_current->step_time_ms, 1000 / player->sequence_current->step_time_ms);
-    printf("frame_count: %lu\n", player->sequence_current->frame_count);
-    printf("channels_count: %d\n", player->sequence_current->channels_count);
+    printf("step_time_ms: %dms (%d FPS)\n", player->sequence_current->step_time_ms, 1000 / player->sequence_current->step_time_ms);
+    printf("frame_count: %d\n", player->sequence_current->frame_count);
+    printf("channels_count: %lu\n", player->sequence_current->channels_count);
 
     // attempt to load audio file provided by determined sequence type
     // this will delegate or fallback internally as needed
@@ -301,10 +300,17 @@ int player_start(struct player_t *player) {
     step_time.tv_sec  = player->sequence_current->step_time_ms / 1000;
     step_time.tv_nsec = (long) (player->sequence_current->step_time_ms % 1000) * 1000000;
 
-    while (1) {
-        if (player_step(player, sequence_type)) {
-            return 1;
-        }
+    frame_index_t frame_index = 0;
+
+    while (true) {
+        // write the current frame index into the frame_buf
+        // pass an interrupt call back to the parent
+        const size_t frame_data_length = controller_write_frame(player->frame_buf, player->sequence_current, frame_index);
+
+        frame_interrupt(frame_index, frame_data_length);
+
+        // move to next frame for next iteration
+        frame_index++;
 
         // test if playback is still happening
         // this defers to the audio time rather than the sequence
@@ -328,6 +334,8 @@ int player_start(struct player_t *player) {
             return 1;
         }
     }
+
+    // todo: reset light output states
 
     // free the current sequence
     // this frees any internal allocations and removes dangling pointers

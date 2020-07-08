@@ -24,31 +24,42 @@
 #ifndef LIBREORAMA_SEQUENCE_H
 #define LIBREORAMA_SEQUENCE_H
 
+#include <lightorama/protocol.h>
+
+#include "types.h"
+
 struct channel_t {
-    unsigned char  unit;
-    unsigned short channel;
-    unsigned char  *frame_data;
-    unsigned short frame_data_count;
-    unsigned short frame_data_max_count;
+    lor_unit_t    unit;
+    lor_channel_t channel;
+    frame_t       *frame_data;
+    frame_t       last_frame;
+    frame_index_t frame_data_max_index; // todo: rename
+    frame_index_t frame_data_last_index; // todo: move inline
 };
 
+// todo: move into channel.h?
+frame_t channel_get_frame(const struct channel_t *channel,
+                          frame_index_t frame_index);
+
 struct sequence_t {
-    unsigned long    step_time_ms;
-    unsigned long    frame_count;
-    unsigned short   channels_count;
+    unsigned short   step_time_ms;
+    frame_index_t    frame_count;
+    size_t           channels_count;
     struct channel_t *channels;
 };
 
 void sequence_free(struct sequence_t *sequence);
 
-int sequence_add_index(struct sequence_t *sequence,
-                       unsigned char unit,
-                       unsigned short channel,
-                       unsigned short *index);
+int sequence_add_channel(struct sequence_t *sequence,
+                         lor_unit_t unit,
+                         lor_channel_t channel,
+                         size_t *channel_index);
 
-int sequence_frame_data_add(struct sequence_t *sequence,
-                            unsigned short index,
-                            unsigned char frame);
+int sequence_frame_data_set(struct sequence_t *sequence,
+                            size_t channel_index,
+                            frame_index_t frame_index_start,
+                            frame_index_t frame_index_end,
+                            frame_t frame);
 
 int sequence_frame_data_shrink(struct sequence_t *sequence);
 

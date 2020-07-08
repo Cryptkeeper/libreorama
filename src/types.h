@@ -21,43 +21,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef LIBREORAMA_PLAYER_H
-#define LIBREORAMA_PLAYER_H
+#ifndef LIBREORAMA_TYPES_H
+#define LIBREORAMA_TYPES_H
 
-#include <stdbool.h>
-#include <stdio.h>
+typedef unsigned short frame_index_t;
+typedef unsigned char  frame_t;
 
-#include <AL/alut.h>
-
-#include "sequence.h"
-#include "types.h"
-
-struct player_t {
-    char              **sequence_files;
-    size_t            sequence_files_cnt;
-    size_t            sequence_files_cur;
-    ALuint            al_source;
-    ALuint            current_al_buffer;
-    bool is_infinite_loop: 1;
-    bool has_al_source: 1;
-    bool has_al_buffer: 1;
-    struct sequence_t *sequence_current; // todo: remove from player
-    unsigned char     *frame_buf; // todo: remove from player?
-};
-
-typedef void (*player_frame_interrupt_t)(frame_index_t frame_index,
-                                         size_t frame_buf_length);
-
-int player_init(struct player_t *player,
-                int is_infinite_loop,
-                const char *show_file_path,
-                unsigned char *frame_buf);
-
-bool player_has_next(struct player_t *player);
-
-int player_start(struct player_t *player,
-                 player_frame_interrupt_t frame_interrupt);
-
-void player_free(const struct player_t *player);
-
-#endif //LIBREORAMA_PLAYER_H
+#endif //LIBREORAMA_TYPES_H
