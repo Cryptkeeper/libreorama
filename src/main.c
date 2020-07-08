@@ -75,6 +75,9 @@ static void handle_exit(void) {
     // this will not modify player, be aware of potential dangling pointers
     player_free(&player);
 
+    // free the frame_buffer
+    frame_buffer_free(&frame_buffer);
+
     // fire alutExit, this assumes it was initialized already
     // this must happen after #player_free since player holds OpenAL sources/buffers
     alutExit();
@@ -169,13 +172,16 @@ int main(int argc,
         return 1;
     }
 
+    frame_buffer = FRAME_BUFFER_EMPTY;
+
     // initialize the default frame_buffer
     // this pre-allocates a working block of memory
     // a zero value (optional) avoids this pre-allocation and instead will
     //  require frame_buffer to allocate on the fly, increasing CPU but decreasing memory
-    if (frame_buffer_alloc(&frame_buffer, initial_frame_buffer_length)) {
-        perror("failed to allocate initial frame buffer");
-        return 1;
+    if (initial_frame_buffer_length > 0) {
+        if (frame_buffer_alloc(&frame_buffer, initial_frame_buffer_length)) {
+            return 1;
+        }
     }
 
     // initialize player and load show file

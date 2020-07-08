@@ -23,8 +23,34 @@
  */
 #include "frame.h"
 
+#include <stdlib.h>
+#include <stdio.h>
+
+const struct frame_buffer_t FRAME_BUFFER_EMPTY = (struct frame_buffer_t) {
+        .data = NULL,
+        .written_length = 0,
+        .max_length = 0
+};
+
+void frame_buffer_free(struct frame_buffer_t *frame_buffer) {
+    if (frame_buffer->data != NULL) {
+        free(frame_buffer->data);
+
+        // remove dangling pointer and reset indexes
+        frame_buffer->data           = NULL;
+        frame_buffer->written_length = 0;
+        frame_buffer->max_length     = 0;
+    }
+}
+
 int frame_buffer_alloc(struct frame_buffer_t *frame_buffer,
                        size_t initial_length) {
+    frame_buffer->data       = malloc(initial_length);
+    frame_buffer->max_length = initial_length;
+    if (frame_buffer->data == NULL) {
+        perror("failed to malloc initial frame buffer length");
+        return 1;
+    }
     return 0;
 }
 

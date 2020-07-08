@@ -35,6 +35,10 @@ struct frame_buffer_t {
     size_t        max_length;
 };
 
+extern const struct frame_buffer_t FRAME_BUFFER_EMPTY;
+
+void frame_buffer_free(struct frame_buffer_t *frame_buffer);
+
 int frame_buffer_alloc(struct frame_buffer_t *frame_buffer,
                        size_t initial_length);
 

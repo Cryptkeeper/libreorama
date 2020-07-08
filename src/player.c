@@ -289,10 +289,13 @@ int player_start(struct player_t *player,
     while (true) {
         // write the current frame index into the frame_buf
         // pass an interrupt call back to the parent
-        const size_t frame_data_length = encode_sequence_frame(frame_buf, &current_sequence, frame_index);
+        if (encode_sequence_frame(frame_buffer, &current_sequence, frame_index)) {
+            perror("failed to encode sequence frame");
+            return 1;
+        }
 
         int frame_interrupt_err;
-        if ((frame_interrupt_err = frame_interrupt(frame_index, frame_data_length))) {
+        if ((frame_interrupt_err = frame_interrupt())) {
             fprintf(stderr, "frame interrupt handler returned %d\n", frame_interrupt_err);
             return frame_interrupt_err;
         }
@@ -325,10 +328,13 @@ int player_start(struct player_t *player,
 
     // encode a reset frame and trigger a final interrupt
     // this resets any active light output states
-    const size_t frame_data_length = encode_reset_frame(frame_buf);
+    if (encode_reset_frame(frame_buffer)) {
+        perror("failed to encode reset frame");
+        return 1;
+    }
 
     int frame_interrupt_err;
-    if ((frame_interrupt_err = frame_interrupt(frame_index, frame_data_length))) {
+    if ((frame_interrupt_err = frame_interrupt())) {
         fprintf(stderr, "frame interrupt handler returned %d\n", frame_interrupt_err);
         return frame_interrupt_err;
     }
