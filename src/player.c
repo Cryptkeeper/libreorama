@@ -26,8 +26,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <unistd.h>
 
+#include "audio.h"
 #include "err.h"
 #include "encode.h"
 #include "file.h"
@@ -75,42 +75,6 @@ static int player_load_sequence_file(struct sequence_t *current_sequence,
     return 0;
 }
 
-static char *player_get_audio_file_or_fallback(const char *sequence_file,
-                                               const char *audio_file_hint) {
-    // test if audio_file_hint exists before loading
-    // if not, attempt to locate a fallback using a basic pattern
-    if (audio_file_hint == NULL) {
-        fprintf(stderr, "sequence file returned no audio file hint\n");
-    } else if (access(audio_file_hint, F_OK) != -1) {
-        return (char *) audio_file_hint;
-    } else {
-        fprintf(stderr, "audio file hint \"%s\" does not exist!\n", audio_file_hint);
-    }
-
-    static const char *file_ext    = ".wav";
-    static const int  file_ext_len = 4;
-
-    // sequence_file is already null terminated at call time
-    // allocate a larger buffer and assign a file extension
-    // this must be freed by the upstream caller
-    const size_t len  = strlen(sequence_file);
-    char         *buf = malloc(len + file_ext_len + 1);
-
-    if (buf == NULL) {
-        return buf;
-    }
-
-    // copy the sequence_file string & append an explicit file extension
-    // this string is already null terminated by malloc sizing with +1
-    strncat(buf, sequence_file, len);
-    strncat(buf, file_ext, file_ext_len);
-
-    // ensure the string is null terminated
-    buf[len + file_ext_len] = 0;
-
-    return buf;
-}
-
 static int player_load_audio_file(struct player_t *player,
                                   const char *sequence_file,
                                   char *audio_file_hint) {
@@ -138,9 +102,9 @@ static int player_load_audio_file(struct player_t *player,
         }
     }
 
-    // use #player_get_audio_file_or_fallback to determine if the file exists
+    // use #audio_find_sequence_file to determine if the file exists
     // if it doesn't, it will internally attempt to locate it at another path
-    char *audio_file_or_fallback = player_get_audio_file_or_fallback(sequence_file, audio_file_hint);
+    char *audio_file_or_fallback = audio_find_sequence_file(sequence_file, audio_file_hint);
 
     printf("using audio file: %s\n", audio_file_or_fallback);
 
