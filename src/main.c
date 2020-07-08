@@ -168,7 +168,7 @@ int main(int argc,
 
     // initialize player and load show file
     // player_init handles error printing internally
-    if (player_init(&player, is_infinite_loop, show_file_path, &frame_buf[0])) {
+    if (player_init(&player, is_infinite_loop, show_file_path)) {
         return 1;
     }
 
@@ -179,7 +179,7 @@ int main(int argc,
     while (player_has_next(&player)) {
         // load and buffer the sequence
         // this will internally block for playback
-        if (player_start(&player, handle_frame_interrupt)) {
+        if (player_start(&player, handle_frame_interrupt, &frame_buf[0])) {
             return 1;
         }
     }

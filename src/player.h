@@ -33,16 +33,14 @@
 #include "types.h"
 
 struct player_t {
-    char              **sequence_files;
-    size_t            sequence_files_cnt;
-    size_t            sequence_files_cur;
-    ALuint            al_source;
-    ALuint            current_al_buffer;
+    char   **sequence_files;
+    size_t sequence_files_cnt;
+    size_t sequence_files_cur;
+    ALuint al_source;
+    ALuint current_al_buffer;
     bool is_infinite_loop: 1;
     bool has_al_source: 1;
     bool has_al_buffer: 1;
-    struct sequence_t *sequence_current; // todo: remove from player
-    unsigned char     *frame_buf; // todo: remove from player?
 };
 
 typedef void (*player_frame_interrupt_t)(frame_index_t frame_index,
@@ -50,13 +48,13 @@ typedef void (*player_frame_interrupt_t)(frame_index_t frame_index,
 
 int player_init(struct player_t *player,
                 int is_infinite_loop,
-                const char *show_file_path,
-                unsigned char *frame_buf);
+                const char *show_file_path);
 
 bool player_has_next(struct player_t *player);
 
 int player_start(struct player_t *player,
-                 player_frame_interrupt_t frame_interrupt);
+                 player_frame_interrupt_t frame_interrupt,
+                 unsigned char *frame_buf);
 
 void player_free(const struct player_t *player);
 

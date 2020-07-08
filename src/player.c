@@ -32,7 +32,7 @@
 #include "encode.h"
 #include "file.h"
 
-static int player_load_sequence_file(struct player_t *player,
+static int player_load_sequence_file(struct sequence_t *current_sequence,
                                      const char *sequence_file,
                                      char **audio_file_hint,
                                      enum sequence_type_t *sequence_type) {
@@ -58,7 +58,7 @@ static int player_load_sequence_file(struct player_t *player,
     const sequence_loader_t sequence_loader = sequence_type_get_loader(*sequence_type);
 
     // pass off to whatever function is provided by #sequence_type_get_loader
-    if (sequence_loader(sequence_file, audio_file_hint, player->sequence_current)) {
+    if (sequence_loader(sequence_file, audio_file_hint, current_sequence)) {
         // each impl should internally handle errors, but a generic top level error message
         //  is provided to prevent silent error returns caused by bad loader impls
         fprintf(stderr, "failed to load sequence file: %s\n", sequence_file);
@@ -67,7 +67,7 @@ static int player_load_sequence_file(struct player_t *player,
 
     // shrink the sequence before it is passed back to the caller
     // this minimizes frame_data allocations internally
-    if (sequence_frame_data_shrink(player->sequence_current)) {
+    if (sequence_frame_data_shrink(current_sequence)) {
         perror("failed to shrink frame data");
         return 1;
     }
@@ -179,10 +179,8 @@ static int player_load_audio_file(struct player_t *player,
 
 int player_init(struct player_t *player,
                 int is_infinite_loop,
-                const char *show_file_path,
-                unsigned char *frame_buf) {
+                const char *show_file_path) {
     player->is_infinite_loop = is_infinite_loop;
-    player->frame_buf        = frame_buf;
 
     // generate the single OpenAL source
     // this is used for all player playback behavior
@@ -235,22 +233,16 @@ bool player_has_next(struct player_t *player) {
 }
 
 int player_start(struct player_t *player,
-                 player_frame_interrupt_t frame_interrupt) {
+                 player_frame_interrupt_t frame_interrupt,
+                 unsigned char *frame_buf) {
     const char *current_sequence_file = player->sequence_files[player->sequence_files_cur];
 
-    // ready the sequence_current value for loading
-    player->sequence_current = malloc(sizeof(struct sequence_t));
-
-    if (player->sequence_current == NULL) {
-        perror("failed to allocate sequence_t");
-        return 1;
-    }
-
-    memset(player->sequence_current, 0, sizeof(struct sequence_t));
-
+    // ready the current_sequence value for loading
     // pass a step_time_ms default value of 50ms (20 FPS)
     // this provides a minimum step time for the program
-    player->sequence_current->step_time_ms = 50;
+    struct sequence_t current_sequence = (struct sequence_t) {
+            .step_time_ms = 50,
+    };
 
     // load the sequence file into memory
     // this will buffer the initial data, and remainder is streamed during updates
@@ -258,7 +250,7 @@ int player_start(struct player_t *player,
 
     char *audio_file_hint = NULL;
 
-    if (player_load_sequence_file(player, current_sequence_file, &audio_file_hint, &sequence_type)) {
+    if (player_load_sequence_file(&current_sequence, current_sequence_file, &audio_file_hint, &sequence_type)) {
         // ensure the allocated audio_file_hint buf is freed
         free(audio_file_hint);
 
@@ -268,9 +260,9 @@ int player_start(struct player_t *player,
     printf("sequence_file: %s\n", current_sequence_file);
     printf("sequence_type: %s\n", sequence_type_string(sequence_type));
     printf("audio_file_hint: %s\n", audio_file_hint);
-    printf("step_time_ms: %dms (%d FPS)\n", player->sequence_current->step_time_ms, 1000 / player->sequence_current->step_time_ms);
-    printf("frame_count: %d\n", player->sequence_current->frame_count);
-    printf("channels_count: %lu\n", player->sequence_current->channels_count);
+    printf("step_time_ms: %dms (%d FPS)\n", current_sequence.step_time_ms, 1000 / current_sequence.step_time_ms);
+    printf("frame_count: %d\n", current_sequence.frame_count);
+    printf("channels_count: %lu\n", current_sequence.channels_count);
 
     // attempt to load audio file provided by determined sequence type
     // this will delegate or fallback internally as needed
@@ -296,15 +288,15 @@ int player_start(struct player_t *player,
     // this is used by the downstream nanosleep calls
     struct timespec step_time;
 
-    step_time.tv_sec  = player->sequence_current->step_time_ms / 1000;
-    step_time.tv_nsec = (long) (player->sequence_current->step_time_ms % 1000) * 1000000;
+    step_time.tv_sec  = current_sequence.step_time_ms / 1000;
+    step_time.tv_nsec = (long) (current_sequence.step_time_ms % 1000) * 1000000;
 
     frame_index_t frame_index = 0;
 
     while (true) {
         // write the current frame index into the frame_buf
         // pass an interrupt call back to the parent
-        const size_t frame_data_length = encode_sequence_frame(player->frame_buf, player->sequence_current, frame_index);
+        const size_t frame_data_length = encode_sequence_frame(frame_buf, &current_sequence, frame_index);
 
         frame_interrupt(frame_index, frame_data_length);
 
@@ -336,15 +328,13 @@ int player_start(struct player_t *player,
 
     // encode a reset frame and trigger a final interrupt
     // this resets any active light output states
-    const size_t frame_data_length = encode_reset_frame(player->frame_buf);
+    const size_t frame_data_length = encode_reset_frame(frame_buf);
 
     frame_interrupt(frame_index, frame_data_length);
 
     // free the current sequence
     // this frees any internal allocations and removes dangling pointers
-    sequence_free(player->sequence_current);
-
-    free(player->sequence_current);
+    sequence_free(&current_sequence);
 
     // increment at last step to avoid skipping 0 index
     player->sequence_files_cur++;
@@ -359,6 +349,8 @@ int player_start(struct player_t *player,
 }
 
 void player_free(const struct player_t *player) {
+    // fixme: current_sequence is not freed by #player_free
+
     // free the string array generated by #freadlines
     freadlines_free(player->sequence_files, player->sequence_files_cnt);
 
