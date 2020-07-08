@@ -105,6 +105,22 @@ static char *xml_get_property(const xmlNode *node,
     return copy;
 }
 
+static int lormedia_get_effect_intensity(const xmlNode *effect_node,
+                                         unsigned char *effect_intensity) {
+    // attempt to match an instant "intensity" field value
+    // todo: split fade into multiple frames?
+    char *intensity_prop = xml_get_property(effect_node, "intensity");
+
+    if (intensity_prop == NULL) {
+        return 1;
+    }
+
+    *effect_intensity = strtol(intensity_prop, NULL, 10); // fixme: bounds check
+    free(intensity_prop);
+
+    return 0;
+}
+
 int lormedia_sequence_load(const char *sequence_file,
                            char **audio_file_hint,
                            struct sequence_t *sequence) {
@@ -163,8 +179,13 @@ int lormedia_sequence_load(const char *sequence_file,
 
             while (effect_node != NULL) {
                 if (effect_node->type == XML_ELEMENT_NODE) {
-                    // todo: get frame data point
                     unsigned char frame_intensity = 0;
+
+                    if (lormedia_get_effect_intensity(effect_node, &frame_intensity)) {
+                        fprintf(stderr, "unable to get effect intensity: %s\n", effect_node->name);
+                        return_code = 1;
+                        goto lormedia_free;
+                    }
 
                     if (sequence_frame_data_add(sequence, channel_index, frame_intensity)) {
                         perror("failed to add frame data");
