@@ -23,6 +23,8 @@
  */
 #include "encode.h"
 
+#include <stdio.h>
+
 #include <lightorama/io.h>
 #include <lightorama/brightness_curve.h>
 

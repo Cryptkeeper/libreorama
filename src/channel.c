@@ -82,7 +82,7 @@ int channel_set_frame_data(struct channel_t *channel,
 
         // safely handle initial 0 value
         // realloc at Nx the size each time ceiling is hit
-        // #channel_shrink_frame_data will handle properly resizing the buffers
+        // #sequence_merge_frame_data will handle properly resizing the buffers
         if (resized_count_max == 0) {
             // default to a frame_data allocation of N frames
             resized_count_max = CHANNEL_FRAME_DATA_COUNT_DEFAULT;

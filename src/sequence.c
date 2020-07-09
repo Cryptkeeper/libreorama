@@ -85,7 +85,6 @@ int sequence_merge_frame_data(struct sequence_t *sequence) {
     }
 
     if (sum_count == 0) {
-        fprintf(stderr, "sequence contains no frame data!\n");
         return LBR_SEQUENCE_ENOFRAMES;
     }
 
@@ -99,6 +98,8 @@ int sequence_merge_frame_data(struct sequence_t *sequence) {
         return LBR_EERRNO;
     }
 
+    printf("allocated %zu frames (%zu bytes)\n", sum_count, merged_frame_data_length);
+
     size_t merged_frame_data_index = 0;
 
     for (size_t i = 0; i < sequence->channels_count; i++) {
@@ -106,7 +107,8 @@ int sequence_merge_frame_data(struct sequence_t *sequence) {
 
         // copy channel's frame_data into merged_frame_data
         // free the previous memory allocation
-        memcpy(merged_frame_data + merged_frame_data_index, channel->frame_data, channel->frame_data_count);
+        // todo: align as table to improve sequential reading
+        memcpy(merged_frame_data + merged_frame_data_index, channel->frame_data, sizeof(struct frame_t) * channel->frame_data_count);
 
         free(channel->frame_data);
 
@@ -121,10 +123,7 @@ int sequence_merge_frame_data(struct sequence_t *sequence) {
 
     // ensure the final index value matches the sum
     // this ensures all writes are correctly aligned
-    if (merged_frame_data_index == sum_count) {
-        printf("allocated %zu frames (%zu bytes)\n", sum_count, merged_frame_data_length);
-    } else {
-        fprintf(stderr, "final writer index %zu does not match sum %zu\n", merged_frame_data_index, sum_count);
+    if (merged_frame_data_index != sum_count) {
         return LBR_SEQUENCE_EWRITEINDEX;
     }
 

@@ -41,7 +41,9 @@ bool frame_equals(struct frame_t a,
             return a.set_brightness == b.set_brightness;
 
         case LOR_ACTION_CHANNEL_FADE:
-            return a.fade.from == b.fade.from && a.fade.to == b.fade.to && a.fade.duration == b.fade.duration;
+            // fade actions are stateful internally to the hardware
+            // they cannot be equal and shouldn't be
+            return false;
 
         case LOR_ACTION_CHANNEL_ON:
         case LOR_ACTION_CHANNEL_TWINKLE:
