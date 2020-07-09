@@ -32,7 +32,7 @@
 
 struct channel_t {
     lor_unit_t     unit;
-    lor_channel_t  channel;
+    lor_channel_t  circuit;
     struct frame_t *frame_data;
     frame_index_t  frame_data_count;
     frame_index_t  frame_data_count_max;

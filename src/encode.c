@@ -33,7 +33,6 @@
 #define ENCODE_MAXIMUM_BLOB_LENGTH 16
 
 static lor_brightness_t encode_brightness(unsigned char brightness) {
-    // target lor_brightness_curve_t used for encoding brightness values
     return lor_brightness_curve_squared((float) brightness / 255.0f);
 }
 
@@ -43,17 +42,17 @@ static int encode_frame(unsigned char *blob,
                         size_t *written) {
     switch (frame.action) {
         case LOR_ACTION_CHANNEL_SET_BRIGHTNESS:
-            *written = lor_write_channel_set_brightness(channel->unit, LOR_CHANNEL_ID, channel->channel, encode_brightness(frame.fade.to), blob);
+            *written = lor_write_channel_set_brightness(channel->unit, LOR_CHANNEL_ID, channel->circuit, encode_brightness(frame.fade.to), blob);
             return 0;
 
         case LOR_ACTION_CHANNEL_FADE:
-            *written = lor_write_channel_fade(channel->unit, LOR_CHANNEL_ID, channel->channel, encode_brightness(frame.fade.from), encode_brightness(frame.fade.to), frame.fade.duration, blob);
+            *written = lor_write_channel_fade(channel->unit, LOR_CHANNEL_ID, channel->circuit, encode_brightness(frame.fade.from), encode_brightness(frame.fade.to), frame.fade.duration, blob);
             return 0;
 
         case LOR_ACTION_CHANNEL_ON:
         case LOR_ACTION_CHANNEL_SHIMMER:
         case LOR_ACTION_CHANNEL_TWINKLE:
-            *written = lor_write_channel_action(channel->unit, LOR_CHANNEL_ID, channel->channel, frame.action, blob);
+            *written = lor_write_channel_action(channel->unit, LOR_CHANNEL_ID, channel->circuit, frame.action, blob);
             return 0;
 
         default:

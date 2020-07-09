@@ -51,7 +51,7 @@ void sequence_free(struct sequence_t *sequence) {
 
 int sequence_add_channel(struct sequence_t *sequence,
                          lor_unit_t unit,
-                         lor_channel_t channel_i,
+                         lor_channel_t circuit,
                          struct channel_t **channel) {
     struct channel_t *channels = realloc(sequence->channels, sizeof(struct channel_t) * (sequence->channels_count + 1));
 
@@ -67,7 +67,7 @@ int sequence_add_channel(struct sequence_t *sequence,
     // initialize the channel using a basic zeroed struct const
     *new_channel = CHANNEL_EMPTY;
     new_channel->unit    = unit;
-    new_channel->channel = channel_i;
+    new_channel->circuit = circuit;
 
     // update the pointer to the newly allocated channel_t
     *channel = new_channel;

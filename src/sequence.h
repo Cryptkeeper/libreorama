@@ -41,7 +41,7 @@ void sequence_free(struct sequence_t *sequence);
 
 int sequence_add_channel(struct sequence_t *sequence,
                          lor_unit_t unit,
-                         lor_channel_t channel_i,
+                         lor_channel_t circuit,
                          struct channel_t **channel);
 
 int sequence_merge_frame_data(struct sequence_t *sequence);

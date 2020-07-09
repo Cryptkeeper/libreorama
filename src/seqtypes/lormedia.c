@@ -250,12 +250,12 @@ int lormedia_sequence_load(const char *sequence_file,
             // append the channel_node to the sequence channels
             // offset channel by 1 since circuit is index 1 based
             const lor_unit_t    unit    = (lor_unit_t) xml_get_propertyl(channel_node, "unit");
-            const lor_channel_t channel = (lor_channel_t) (xml_get_propertyl(channel_node, "circuit") - 1);
+            const lor_channel_t circuit = (lor_channel_t) (xml_get_propertyl(channel_node, "circuit") - 1);
 
             // append the channel_node to the sequence channels
             struct channel_t *channel_ptr = NULL;
 
-            if ((err = sequence_add_channel(sequence, unit, channel, &channel_ptr))) {
+            if ((err = sequence_add_channel(sequence, unit, circuit, &channel_ptr))) {
                 return_code = err;
                 goto lormedia_free;
             }
