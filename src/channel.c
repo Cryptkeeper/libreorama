@@ -29,16 +29,6 @@
 #define CHANNEL_FRAME_DATA_COUNT_DEFAULT 512
 #define CHANNEL_FRAME_DATA_COUNT_GROW_SCALE 2
 
-const struct channel_t CHANNEL_EMPTY = (struct channel_t) {
-        .unit = 0,
-        .channel = 0,
-        .frame_data = NULL,
-        .frame_data_count = 0,
-        .frame_data_count_max = 0,
-        .first_frame_offset = 0,
-        .has_first_frame_offset = false
-};
-
 struct frame_t *channel_get_frame(const struct channel_t *channel,
                                   frame_index_t frame_index) {
     // prevent read attempts if the current frame_index is

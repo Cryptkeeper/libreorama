@@ -37,6 +37,8 @@ struct frame_t {
     };
 };
 
+static const struct frame_t FRAME_EMPTY;
+
 typedef unsigned short frame_index_t;
 
 struct frame_buffer_t {
@@ -45,7 +47,7 @@ struct frame_buffer_t {
     size_t        max_length;
 };
 
-extern const struct frame_buffer_t FRAME_BUFFER_EMPTY;
+static const struct frame_buffer_t FRAME_BUFFER_EMPTY;
 
 void frame_buffer_free(struct frame_buffer_t *frame_buffer);
 

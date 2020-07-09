@@ -249,10 +249,7 @@ int lormedia_sequence_load(const char *sequence_file,
                         sequence->step_time_ms = current_step_time_ms;
                     }
 
-                    struct frame_t frame;
-
-                    // ensure frame is zeroed out
-                    memset(&frame, 0, sizeof(struct frame_t));
+                    struct frame_t frame = FRAME_EMPTY;
 
                     if (!lormedia_get_frame(effect_node, &frame, start_cs, end_cs)) {
                         char *type_prop = xml_get_property(effect_node, "type");

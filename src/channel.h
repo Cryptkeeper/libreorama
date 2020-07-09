@@ -40,7 +40,7 @@ struct channel_t {
     bool has_first_frame_offset;
 };
 
-extern const struct channel_t CHANNEL_EMPTY;
+static const struct channel_t CHANNEL_EMPTY;
 
 struct frame_t *channel_get_frame(const struct channel_t *channel,
                                   frame_index_t frame_index);

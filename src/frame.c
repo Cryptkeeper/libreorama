@@ -28,12 +28,6 @@
 
 #define FRAME_BUFFER_LENGTH_GROW_SCALE 2
 
-const struct frame_buffer_t FRAME_BUFFER_EMPTY = (struct frame_buffer_t) {
-        .data = NULL,
-        .written_length = 0,
-        .max_length = 0,
-};
-
 void frame_buffer_free(struct frame_buffer_t *frame_buffer) {
     if (frame_buffer->data != NULL) {
         free(frame_buffer->data);
