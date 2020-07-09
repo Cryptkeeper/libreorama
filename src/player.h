@@ -53,7 +53,8 @@ bool player_has_next(struct player_t *player);
 
 int player_start(struct player_t *player,
                  player_frame_interrupt_t frame_interrupt,
-                 struct frame_buffer_t *frame_buffer);
+                 struct frame_buffer_t *frame_buffer,
+                 unsigned short time_correction_ms);
 
 void player_free(const struct player_t *player);
 

@@ -36,8 +36,9 @@ static void print_usage(void) {
     printf("Options:\n");
     printf("\t-b <serial port baud rate> (defaults to 19200)\n");
     printf("\t-f <show file path> (defaults to \"show.txt\")\n");
+    printf("\t-p <pre-allocated frame buffer length> (defaults to 0 bytes)\n");
+    printf("\t-c <time correction offset in milliseconds> (defaults to 0)\n");
     printf("\t-l loop show infinitely (defaults to false)\n");
-    printf("\t-p pre-allocated frame buffer (defaults to 0 bytes)\n");
 }
 
 static struct sp_port        *serial_port = NULL;
@@ -97,7 +98,7 @@ static int handle_frame_interrupt(unsigned short step_time_ms) {
 
         // sp_nonblocking_write returns bytes written when non-error (<0 - SP_OK)
         // feed step_time_ms as timeout to avoid blocking writes from stalling playback
-        if ((sp_return = sp_blocking_write(serial_port, frame_buffer.data, frame_buffer.written_length, step_time_ms)) < SP_OK) {
+        if ((sp_return = sp_blocking_write(serial_port, frame_buffer.data, frame_buffer.written_length, step_time_ms / 2)) < SP_OK) {
             sp_perror(sp_return, "failed to write frame data to serial port");
             return LBR_ESPERR;
         }
@@ -116,15 +117,16 @@ static int handle_frame_interrupt(unsigned short step_time_ms) {
 
 int main(int argc,
          char **argv) {
-    int    baud_rate                   = 19200;
-    char   *show_file_path             = "show.txt";
-    bool   is_infinite_loop            = true;
-    size_t initial_frame_buffer_length = 0;
+    int            baud_rate                   = 19200;
+    char           *show_file_path             = "show.txt";
+    bool           is_infinite_loop            = true;
+    size_t         initial_frame_buffer_length = 0;
+    unsigned short time_correction_ms          = 0;
 
     // prefix optstring with : to enable missing option case
     // see "man 3 getopt" for more information
     int c;
-    while ((c = getopt(argc, argv, ":hb:f:lp:")) != -1) {
+    while ((c = getopt(argc, argv, ":hb:f:p:c:l")) != -1) {
         switch (c) {
             case 'h':
                 print_usage();
@@ -152,9 +154,6 @@ int main(int argc,
                 show_file_path = optarg;
                 break;
             }
-            case 'l':
-                is_infinite_loop = true;
-                break;
             case 'p': {
                 long initial_frame_buffer_lengthl = strtol(optarg, NULL, 10);
 
@@ -162,10 +161,26 @@ int main(int argc,
                 // this is mostly used for the < 0 check to prevent negative input
                 if (initial_frame_buffer_lengthl < 0 || initial_frame_buffer_lengthl > SIZE_T_MAX) {
                     fprintf(stderr, "invalid frame buffer length: %ld\n", initial_frame_buffer_lengthl);
+                    return 1;
                 }
                 initial_frame_buffer_length = (size_t) initial_frame_buffer_lengthl;
                 break;
             }
+            case 'c': {
+                long time_correction_msl = strtol(optarg, NULL, 10);
+
+                // bounds check before downcasting long to unsigned short
+                // this is mostly used for the < 0 check to prevent negative input
+                if (time_correction_msl < 0 || time_correction_msl > USHRT_MAX) {
+                    fprintf(stderr, "invalid time correction: %ld\n", time_correction_msl);
+                    return 1;
+                }
+                time_correction_ms = (unsigned short) time_correction_msl;
+                break;
+            }
+            case 'l':
+                is_infinite_loop = true;
+                break;
         }
     }
 
@@ -227,7 +242,7 @@ int main(int argc,
     while (player_has_next(&player)) {
         // load and buffer the sequence
         // this will internally block for playback
-        if ((err = player_start(&player, handle_frame_interrupt, &frame_buffer))) {
+        if ((err = player_start(&player, handle_frame_interrupt, &frame_buffer, time_correction_ms))) {
             lbr_perror(err, "failed to start player");
             return 1;
         }

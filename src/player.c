@@ -145,6 +145,19 @@ static int player_load_audio_file(struct player_t *player,
     return 0;
 }
 
+static int player_reset_frame_buffer(player_frame_interrupt_t frame_interrupt,
+                                     struct frame_buffer_t *frame_buffer,
+                                     unsigned short step_time_ms) {
+    int err;
+    if ((err = encode_reset_frame(frame_buffer))) {
+        return err;
+    }
+    if ((err = frame_interrupt(step_time_ms))) {
+        return err;
+    }
+    return 0;
+}
+
 int player_init(struct player_t *player,
                 bool is_infinite_loop,
                 const char *show_file_path) {
@@ -198,7 +211,8 @@ bool player_has_next(struct player_t *player) {
 
 int player_start(struct player_t *player,
                  player_frame_interrupt_t frame_interrupt,
-                 struct frame_buffer_t *frame_buffer) {
+                 struct frame_buffer_t *frame_buffer,
+                 unsigned short time_correction_ms) {
     const char *current_sequence_file = player->sequence_files[player->sequence_files_cur];
 
     // ready the current_sequence value for loading
@@ -255,7 +269,17 @@ int player_start(struct player_t *player,
     step_time.tv_sec  = current_sequence.step_time_ms / 1000;
     step_time.tv_nsec = (long) (current_sequence.step_time_ms % 1000) * 1000000;
 
-    frame_index_t frame_index = 0;
+    // convert time_correction_ms into its corresponding frame_index_t
+    // use this as a starting point to (optionally) shift forward
+    frame_index_t frame_index = time_correction_ms / current_sequence.step_time_ms;
+
+    printf("initial frame_index: %u\n", frame_index);
+
+    // reset the initial output state
+    // otherwise channels may still be active when initially booted
+    if ((err = player_reset_frame_buffer(frame_interrupt, frame_buffer, current_sequence.step_time_ms))) {
+        return err;
+    }
 
     while (true) {
         // write the current frame index into the frame_buf
@@ -295,11 +319,7 @@ int player_start(struct player_t *player,
 
     // encode a reset frame and trigger a final interrupt
     // this resets any active light output states
-    if ((err = encode_reset_frame(frame_buffer))) {
-        return err;
-    }
-
-    if ((err = frame_interrupt(current_sequence.step_time_ms))) {
+    if ((err = player_reset_frame_buffer(frame_interrupt, frame_buffer, current_sequence.step_time_ms))) {
         return err;
     }
 
