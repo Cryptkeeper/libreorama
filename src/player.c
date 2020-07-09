@@ -266,9 +266,6 @@ int player_start(struct player_t *player,
     // this is used by the downstream nanosleep calls
     struct timespec step_time;
 
-    step_time.tv_sec  = current_sequence.step_time_ms / 1000;
-    step_time.tv_nsec = (long) (current_sequence.step_time_ms % 1000) * 1000000;
-
     // convert time_correction_ms into its corresponding frame_index_t
     // use this as a starting point to (optionally) shift forward
     frame_index_t frame_index = time_correction_ms / current_sequence.step_time_ms;
@@ -309,6 +306,13 @@ int player_start(struct player_t *player,
         if (source_state != AL_PLAYING) {
             break;
         }
+
+        // this is set each loop to handle time offsets
+        // fixme: offset using overage/underage from previous loop
+        unsigned short sleep_time_ms = current_sequence.step_time_ms;
+
+        step_time.tv_sec  = sleep_time_ms / 1000;
+        step_time.tv_nsec = (long) (sleep_time_ms % 1000) * 1000000;
 
         // sleep after each loop iteration
         // this time comes from #player_load_sequence_file and should be considered dynamic
