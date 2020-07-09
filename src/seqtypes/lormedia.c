@@ -27,15 +27,14 @@
 #include <string.h>
 
 #include <libxml/tree.h>
-#include <libxml/parser.h>
 
-#include <lightorama/brightness_curve.h>
+#define LORMEDIA_MAX_INTENSITY 100
 
 static xmlNode *xml_find_node_next(const xmlNode *root,
                                    const char *name) {
     // iterate from the provided element to each next
     // see http://xmlsoft.org/tutorial/ar01s04.html
-    xmlNode *cur = root;
+    xmlNode *cur = (xmlNode *) root;
 
     while (cur != NULL) {
         if (xmlStrEqual(cur->name, (const xmlChar *) name)) {
@@ -82,7 +81,7 @@ static char *xml_get_property(const xmlNode *node,
 
     // determine the string's length and allocate a copy buffer
     // size for + 1 to ensure null termination
-    const size_t str_len = xmlStrlen(value);
+    const size_t str_len = (size_t) xmlStrlen(value);
     char         *copy   = malloc(str_len + 1);
 
     if (copy == NULL) {
@@ -111,22 +110,22 @@ static long xml_get_propertyl(const xmlNode *node,
     if (value == NULL) {
         return 0;
     }
-    const long l = strtol((char *) value, NULL, 10);
+    const long l = strtol((const char *) value, NULL, 10);
     xmlFree((void *) value);
     return l;
 }
 
-static lor_brightness_t lormedia_get_effect_brightness(unsigned char effect_intensity) {
+static unsigned char lormedia_effect_brightness(unsigned char effect_intensity) {
     // LMS files use 0-100 for brightness scales
-    // normalize the value and convert to a lor_brightness_t type
-    // lor_brightness_curve_* will internally clamp the normal
-    return lor_brightness_curve_linear((float) effect_intensity / 100.0f);
+    // normalize the value and scale it against 255 (full byte)
+    // this value will be encoded to a lor_brightness_t by encode.h
+    return (unsigned char) (((float) effect_intensity / 100.0f) * 255);
 }
 
 static bool lormedia_get_frame(const xmlNode *effect_node,
                                struct frame_t *frame,
-                               long start_cs,
-                               long end_cs) {
+                               unsigned long start_cs,
+                               unsigned long end_cs) {
     xmlChar *effect_type = xmlGetProp(effect_node, (const xmlChar *) "type");
 
     if (effect_type == NULL) {
@@ -140,9 +139,9 @@ static bool lormedia_get_frame(const xmlNode *effect_node,
     // - contains "startIntensity" & "endIntensity" properties for fading
     if (xmlStrcmp(effect_type, (const xmlChar *) "intensity") == 0) {
         if (xmlHasProp(effect_node, (const xmlChar *) "intensity")) {
-            const unsigned char intensity = xml_get_propertyl(effect_node, "intensity");
+            const unsigned char intensity = (unsigned char) xml_get_propertyl(effect_node, "intensity");
 
-            if (intensity == 100) {
+            if (intensity == LORMEDIA_MAX_INTENSITY) {
                 // since intensity is 100%, use ON action instead
                 *frame = (struct frame_t) {
                         .action = LOR_ACTION_CHANNEL_ON,
@@ -151,7 +150,7 @@ static bool lormedia_get_frame(const xmlNode *effect_node,
                 *frame = (struct frame_t) {
                         .action = LOR_ACTION_CHANNEL_SET_BRIGHTNESS,
                         {
-                                .set_brightness = lormedia_get_effect_brightness(intensity)
+                                .set_brightness = lormedia_effect_brightness(intensity)
                         }
                 };
             }
@@ -161,15 +160,15 @@ static bool lormedia_get_frame(const xmlNode *effect_node,
         }
 
         if (xmlHasProp(effect_node, (const xmlChar *) "startIntensity") && xmlHasProp(effect_node, (const xmlChar *) "endIntensity")) {
-            const unsigned char start_intensity = xml_get_propertyl(effect_node, "startIntensity");
-            const unsigned char end_intensity   = xml_get_propertyl(effect_node, "endIntensity");
+            const unsigned char start_intensity = (unsigned char) xml_get_propertyl(effect_node, "startIntensity");
+            const unsigned char end_intensity   = (unsigned char) xml_get_propertyl(effect_node, "endIntensity");
 
             *frame = (struct frame_t) {
                     .action = LOR_ACTION_CHANNEL_FADE,
                     {
                             .fade = {
-                                    .from = lormedia_get_effect_brightness(start_intensity),
-                                    .to = lormedia_get_effect_brightness(end_intensity),
+                                    .from = lormedia_effect_brightness(start_intensity),
+                                    .to = lormedia_effect_brightness(end_intensity),
                                     .duration = lor_duration_of((float) (end_cs - start_cs) / 100.0f),
                             }
                     }
@@ -239,9 +238,11 @@ int lormedia_sequence_load(const char *sequence_file,
     while (channel_node != NULL) {
         if (channel_node->type == XML_ELEMENT_NODE) {
             // append the channel_node to the sequence channels
-            const lor_unit_t    unit    = xml_get_propertyl(channel_node, "unit");
-            const lor_channel_t channel = xml_get_propertyl(channel_node, "circuit");
+            // offset channel by 1 since circuit is index 1 based
+            const lor_unit_t    unit    = (lor_unit_t) xml_get_propertyl(channel_node, "unit");
+            const lor_channel_t channel = (lor_channel_t) (xml_get_propertyl(channel_node, "circuit") - 1);
 
+            // append the channel_node to the sequence channels
             struct channel_t *channel_ptr = NULL;
 
             if (sequence_add_channel(sequence, unit, channel, &channel_ptr)) {
@@ -256,16 +257,8 @@ int lormedia_sequence_load(const char *sequence_file,
 
             while (effect_node != NULL) {
                 if (effect_node->type == XML_ELEMENT_NODE) {
-                    const long start_cs = xml_get_propertyl(effect_node, "startCentisecond");
-                    const long end_cs   = xml_get_propertyl(effect_node, "endCentisecond");
-
-                    // test if the difference, in milliseconds, is below
-                    //  the smallest step time threshold
-                    const long current_step_time_ms = (end_cs - start_cs) * 10;
-
-                    if (current_step_time_ms < sequence->step_time_ms) {
-                        sequence->step_time_ms = current_step_time_ms;
-                    }
+                    const unsigned long start_cs = (unsigned long) xml_get_propertyl(effect_node, "startCentisecond");
+                    const unsigned long end_cs   = (unsigned long) xml_get_propertyl(effect_node, "endCentisecond");
 
                     struct frame_t frame = FRAME_EMPTY;
 
@@ -278,10 +271,17 @@ int lormedia_sequence_load(const char *sequence_file,
                         goto lormedia_free;
                     }
 
+                    // test if the difference, in milliseconds, is below the smallest step time threshold
+                    const unsigned short current_step_time_ms = (unsigned short) ((end_cs - start_cs) * 10);
+
+                    if (current_step_time_ms > 0 && current_step_time_ms < sequence->step_time_ms) {
+                        sequence->step_time_ms = current_step_time_ms;
+                    }
+
                     // from start/end_cs_prop (start time in centiseconds), scale against step_time_ms
                     //  to determine the frame_index for this effect_node
                     // this is because effect_nodes may be out of order, or in variable interval
-                    const frame_index_t frame_index_start = (start_cs * 10) / sequence->step_time_ms;
+                    const frame_index_t frame_index_start = (frame_index_t) ((start_cs * 10) / sequence->step_time_ms);
 
                     if (channel_set_frame_data(channel_ptr, frame_index_start, frame)) {
                         perror("failed to set frame data");
@@ -307,7 +307,7 @@ int lormedia_sequence_load(const char *sequence_file,
 
     while (track_node != NULL) {
         if (track_node->type == XML_ELEMENT_NODE) {
-            const unsigned long total_cs = xml_get_propertyl(track_node, "totalCentiseconds");
+            const unsigned long total_cs = (unsigned long) xml_get_propertyl(track_node, "totalCentiseconds");
 
             if (total_cs > highest_total_cs) {
                 highest_total_cs = total_cs;
@@ -319,7 +319,7 @@ int lormedia_sequence_load(const char *sequence_file,
 
     // convert the highest_total_cs value from centiseconds into a frame_count
     // this used the previously determined step_time as a frame interval time
-    sequence->frame_count = (highest_total_cs * 10) / sequence->step_time_ms;
+    sequence->frame_count = (frame_index_t) ((highest_total_cs * 10) / sequence->step_time_ms);
 
     lormedia_free:
     xmlFreeDoc(doc);

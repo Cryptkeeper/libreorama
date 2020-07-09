@@ -25,33 +25,36 @@
 
 #include <stdio.h>
 
-#include <lightorama/protocol.h>
 #include <lightorama/io.h>
+#include <lightorama/brightness_curve.h>
 
 // assumes no individual lor_write_* call will use more than 16 bytes
-//  see https://github.com/Cryptkeeper/liblightorama#memory-allocations
+// see https://github.com/Cryptkeeper/liblightorama#memory-allocations
 #define ENCODE_MAXIMUM_BLOB_LENGTH 16
 
-static int encode_frame(unsigned char *blob,
-                        struct channel_t *channel,
-                        struct frame_t frame) {
+static lor_brightness_t encode_brightness(unsigned char brightness) {
+    // target lor_brightness_curve_t used for encoding brightness values
+    return lor_brightness_curve_squared((float) brightness / 255.0f);
+}
+
+static size_t encode_frame(unsigned char *blob,
+                           struct channel_t *channel,
+                           struct frame_t frame) {
     switch (frame.action) {
         case LOR_ACTION_CHANNEL_SET_BRIGHTNESS:
-            return lor_write_channel_set_brightness(channel->unit, LOR_CHANNEL_ID,
-                                                    channel->channel - 1, frame.set_brightness, blob);
+            return lor_write_channel_set_brightness(channel->unit, LOR_CHANNEL_ID, channel->channel, encode_brightness(frame.fade.to), blob);
 
         case LOR_ACTION_CHANNEL_FADE:
-            return lor_write_channel_fade(channel->unit, LOR_CHANNEL_ID,
-                                          channel->channel - 1, frame.fade.from, frame.fade.to, frame.fade.duration, blob);
+            return lor_write_channel_fade(channel->unit, LOR_CHANNEL_ID, channel->channel, encode_brightness(frame.fade.from), encode_brightness(frame.fade.to), frame.fade.duration, blob);
 
         case LOR_ACTION_CHANNEL_ON:
         case LOR_ACTION_CHANNEL_SHIMMER:
         case LOR_ACTION_CHANNEL_TWINKLE:
-            return lor_write_channel_action(channel->unit, LOR_CHANNEL_ID, channel->channel - 1, frame.action, blob);
+            return lor_write_channel_action(channel->unit, LOR_CHANNEL_ID, channel->channel, frame.action, blob);
 
         default:
             fprintf(stderr, "failed to encode frame, unsupported action: %d\n", frame.action);
-            return -1;
+            return 0;
     }
 }
 
@@ -92,14 +95,15 @@ int encode_sequence_frame(struct frame_buffer_t *frame_buffer,
             return 1;
         }
 
-        int written;
-        if ((written = encode_frame(blob, channel, *frame)) < 0) {
-            // <0 returns indicate internal error
+        size_t written;
+        if ((written = encode_frame(blob, channel, *frame)) == 0) {
+            // 0 returns indicate internal error
+            // since frames at this point are non-empty, something should always be written
             return 1;
         }
 
         if (written > ENCODE_MAXIMUM_BLOB_LENGTH) {
-            fprintf(stderr, "written %d exceeds maximum blob length! %d\n", written, ENCODE_MAXIMUM_BLOB_LENGTH);
+            fprintf(stderr, "written %zu exceeds maximum blob length! %d\n", written, ENCODE_MAXIMUM_BLOB_LENGTH);
             return 1;
         }
 

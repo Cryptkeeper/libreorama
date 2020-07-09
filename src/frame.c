@@ -102,7 +102,7 @@ int frame_buffer_get_blob(struct frame_buffer_t *frame_buffer,
         return 1;
     }
 
-    fprintf(stderr, "reallocated frame buffer %zu bytes to %zu bytes (increase pre-allocated frame buffer?)\n", frame_buffer->max_length, realloc_max_length);
+    fprintf(stderr, "reallocated frame buffer to %zu bytes (increase pre-allocation?)\n", realloc_max_length);
 
     frame_buffer->data       = data;
     frame_buffer->max_length = realloc_max_length;

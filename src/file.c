@@ -69,6 +69,10 @@ char **freadlines(FILE *file,
         char **lines_realloc = realloc(lines, sizeof(char *) * (lines_len + 1));
 
         if (lines_realloc == NULL) {
+            // explicitly free the newly created buffer
+            // this won't be freed by #freadlines_free since it isn't inserted
+            free(buf);
+
             // failed to reallocate larger array
             // free anything that has been allocated thus far
             freadlines_free(lines, lines_len);

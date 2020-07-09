@@ -46,7 +46,7 @@ struct player_t {
 typedef int (*player_frame_interrupt_t)(unsigned short step_time_ms);
 
 int player_init(struct player_t *player,
-                int is_infinite_loop,
+                bool is_infinite_loop,
                 const char *show_file_path);
 
 bool player_has_next(struct player_t *player);

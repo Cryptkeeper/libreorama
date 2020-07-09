@@ -32,7 +32,7 @@
 struct frame_t {
     lor_channel_action_t action;
     union {
-        lor_brightness_t           set_brightness;
+        unsigned char              set_brightness;
         struct frame_effect_fade_t fade;
     };
 } __attribute__((packed));

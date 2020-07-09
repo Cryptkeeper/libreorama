@@ -27,9 +27,9 @@
 #include <lightorama/protocol.h>
 
 struct frame_effect_fade_t {
-    lor_brightness_t from;
-    lor_brightness_t to;
-    lor_duration_t   duration;
+    unsigned char  from;
+    unsigned char  to;
+    lor_duration_t duration;
 } __attribute__((packed));
 
 #endif //LIBREORAMA_EFFECT_H

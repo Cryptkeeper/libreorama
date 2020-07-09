@@ -142,7 +142,7 @@ static int player_load_audio_file(struct player_t *player,
 }
 
 int player_init(struct player_t *player,
-                int is_infinite_loop,
+                bool is_infinite_loop,
                 const char *show_file_path) {
     player->is_infinite_loop = is_infinite_loop;
 

@@ -38,9 +38,9 @@ ALenum al_get_error() {
 
 void al_perror(ALenum err,
                char *msg) {
-    // this is the same as if (err) and will be optimized out by the compiler
-    // use explicit comparisons to make the purpose of the check clear
-    if (err == AL_NO_ERROR || err == ALUT_ERROR_NO_ERROR) {
+    // avoid calls with NO_ERROR conditions
+    // this abuses the fact AL_NO_ERROR & ALUT_ERROR_NO_ERROR are 0 value
+    if (!err) {
         fprintf(stderr, "unknown error: %s\n", msg);
         return;
     }

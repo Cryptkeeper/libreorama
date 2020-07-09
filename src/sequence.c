@@ -76,22 +76,22 @@ int sequence_add_channel(struct sequence_t *sequence,
 int sequence_merge_frame_data(struct sequence_t *sequence) {
     // calculate the total count of all frame_data values
     // this is used to allocate a single block of memory
-    size_t sum_count = 0, sum_count_max = 0;
+    size_t sum_count = 0;
 
     for (size_t i = 0; i < sequence->channels_count; i++) {
-        struct channel_t channel = sequence->channels[i];
-
-        sum_count += channel.frame_data_count;
-        sum_count_max += channel.frame_data_count_max;
+        sum_count += sequence->channels[i].frame_data_count;
     }
 
-    printf("merging %zu frame data allocations (%zu bytes) into %zu bytes\n", sequence->channels_count,
-           sizeof(struct frame_t) * sum_count_max, sizeof(struct frame_t) * sum_count);
+    if (sum_count == 0) {
+        fprintf(stderr, "sequence contains no frame data!\n");
+        return 1;
+    }
 
     // allocate a single block of sum_count size
     // various subsections of this will be passed to each channel
     // this alloc does not need to be zeroed since it will be completely overwritten
-    struct frame_t *merged_frame_data = malloc(sizeof(struct frame_t) * sum_count);
+    const size_t   merged_frame_data_length = sizeof(struct frame_t) * sum_count;
+    struct frame_t *merged_frame_data       = malloc(merged_frame_data_length);
 
     if (merged_frame_data == NULL) {
         return 1;
@@ -119,7 +119,9 @@ int sequence_merge_frame_data(struct sequence_t *sequence) {
 
     // ensure the final index value matches the sum
     // this ensures all writes are correctly aligned
-    if (merged_frame_data_index != sum_count) {
+    if (merged_frame_data_index == sum_count) {
+        printf("allocated %zu frames (%zu bytes)\n", sum_count, merged_frame_data_length);
+    } else {
         fprintf(stderr, "final writer index %zu does not match sum %zu\n", merged_frame_data_index, sum_count);
         return 1;
     }

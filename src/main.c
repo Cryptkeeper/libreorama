@@ -132,6 +132,7 @@ int main(int argc,
                 fprintf(stderr, "argument is missing option: %c\n", optopt);
                 return 1;
             case '?':
+            default:
                 fprintf(stderr, "unknown argument: %c\n", optopt);
                 return 1;
             case 'b': {
@@ -154,7 +155,7 @@ int main(int argc,
                 is_infinite_loop = true;
                 break;
             case 'p':
-                initial_frame_buffer_length = strtol(optarg, NULL, 10);
+                initial_frame_buffer_length = (size_t) strtol(optarg, NULL, 10);
                 break;
         }
     }
