@@ -32,10 +32,10 @@
 struct frame_t {
     lor_channel_action_t action;
     union {
-        struct effect_set_brightness_t brightness;
-        struct effect_fade_t           fade;
+        lor_brightness_t           set_brightness;
+        struct frame_effect_fade_t fade;
     };
-};
+} __attribute__((packed));
 
 static const struct frame_t FRAME_EMPTY;
 

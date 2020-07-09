@@ -26,14 +26,10 @@
 
 #include <lightorama/protocol.h>
 
-struct effect_set_brightness_t {
-    lor_brightness_t brightness;
-};
-
-struct effect_fade_t {
+struct frame_effect_fade_t {
     lor_brightness_t from;
     lor_brightness_t to;
     lor_duration_t   duration;
-};
+} __attribute__((packed));
 
 #endif //LIBREORAMA_EFFECT_H

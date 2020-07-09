@@ -38,12 +38,13 @@ static int encode_frame(unsigned char *blob,
     switch (frame.action) {
         case LOR_ACTION_CHANNEL_SET_BRIGHTNESS:
             return lor_write_channel_set_brightness(channel->unit, LOR_CHANNEL_ID,
-                                                    channel->channel - 1, frame.brightness.brightness, blob);
+                                                    channel->channel - 1, frame.set_brightness, blob);
 
         case LOR_ACTION_CHANNEL_FADE:
             return lor_write_channel_fade(channel->unit, LOR_CHANNEL_ID,
                                           channel->channel - 1, frame.fade.from, frame.fade.to, frame.fade.duration, blob);
 
+        case LOR_ACTION_CHANNEL_ON:
         case LOR_ACTION_CHANNEL_SHIMMER:
         case LOR_ACTION_CHANNEL_TWINKLE:
             return lor_write_channel_action(channel->unit, LOR_CHANNEL_ID, channel->channel - 1, frame.action, blob);

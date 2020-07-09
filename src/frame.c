@@ -36,11 +36,12 @@ bool frame_equals(struct frame_t a,
 
     switch (a.action) {
         case LOR_ACTION_CHANNEL_SET_BRIGHTNESS:
-            return a.brightness.brightness == b.brightness.brightness;
+            return a.set_brightness == b.set_brightness;
 
         case LOR_ACTION_CHANNEL_FADE:
             return a.fade.from == b.fade.from && a.fade.to == b.fade.to && a.fade.duration == b.fade.duration;
 
+        case LOR_ACTION_CHANNEL_ON:
         case LOR_ACTION_CHANNEL_TWINKLE:
         case LOR_ACTION_CHANNEL_SHIMMER:
             return true;
@@ -101,8 +102,7 @@ int frame_buffer_get_blob(struct frame_buffer_t *frame_buffer,
         return 1;
     }
 
-    fprintf(stderr, "reallocated frame buffer %zu bytes to %zu bytes\n", frame_buffer->max_length, realloc_max_length);
-    fprintf(stderr, "consider increasing the pre-allocated frame buffer!\n");
+    fprintf(stderr, "reallocated frame buffer %zu bytes to %zu bytes (increase pre-allocated frame buffer?)\n", frame_buffer->max_length, realloc_max_length);
 
     frame_buffer->data       = data;
     frame_buffer->max_length = realloc_max_length;

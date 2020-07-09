@@ -129,61 +129,79 @@ static bool lormedia_get_frame(const xmlNode *effect_node,
                                long end_cs) {
     xmlChar *effect_type = xmlGetProp(effect_node, (const xmlChar *) "type");
 
-    if (effect_node == NULL) {
+    if (effect_type == NULL) {
         return false;
     }
 
+    bool    return_code  = false;
+
+    // intensity effect comes in 2 forms
+    // - contains "intensity" property to set the target brightness to
+    // - contains "startIntensity" & "endIntensity" properties for fading
     if (xmlStrcmp(effect_type, (const xmlChar *) "intensity") == 0) {
-        // intensity effect comes in 2 forms
-        //  1: contains "intensity" property to set the target brightness to
-        //  2: contains "startIntensity" & "endIntensity" properties for fading
         if (xmlHasProp(effect_node, (const xmlChar *) "intensity")) {
             const unsigned char intensity = xml_get_propertyl(effect_node, "intensity");
 
-            struct effect_set_brightness_t brightness = (struct effect_set_brightness_t) {
-                    .brightness = lormedia_get_effect_brightness(intensity)
-            };
+            if (intensity == 100) {
+                // since intensity is 100%, use ON action instead
+                *frame = (struct frame_t) {
+                        .action = LOR_ACTION_CHANNEL_ON,
+                };
+            } else {
+                *frame = (struct frame_t) {
+                        .action = LOR_ACTION_CHANNEL_SET_BRIGHTNESS,
+                        {
+                                .set_brightness = lormedia_get_effect_brightness(intensity)
+                        }
+                };
+            }
 
-            *frame = (struct frame_t) {
-                    .action = LOR_ACTION_CHANNEL_SET_BRIGHTNESS,
-                    .brightness = brightness,
-            };
-
-            return true;
+            return_code = true;
+            goto lormedia_get_frame_return;
         }
 
         if (xmlHasProp(effect_node, (const xmlChar *) "startIntensity") && xmlHasProp(effect_node, (const xmlChar *) "endIntensity")) {
             const unsigned char start_intensity = xml_get_propertyl(effect_node, "startIntensity");
             const unsigned char end_intensity   = xml_get_propertyl(effect_node, "endIntensity");
 
-            struct effect_fade_t fade = (struct effect_fade_t) {
-                    .from = lormedia_get_effect_brightness(start_intensity),
-                    .to = lormedia_get_effect_brightness(end_intensity),
-                    .duration = lor_duration_of((float) (end_cs - start_cs) / 100.0f),
-            };
-
             *frame = (struct frame_t) {
                     .action = LOR_ACTION_CHANNEL_FADE,
-                    .fade = fade,
+                    {
+                            .fade = {
+                                    .from = lormedia_get_effect_brightness(start_intensity),
+                                    .to = lormedia_get_effect_brightness(end_intensity),
+                                    .duration = lor_duration_of((float) (end_cs - start_cs) / 100.0f),
+                            }
+                    }
             };
 
-            return true;
+            return_code = true;
+            goto lormedia_get_frame_return;
         }
-    } else if (xmlStrcmp(effect_type, (const xmlChar *) "shimmer") == 0) {
+    }
+
+    if (xmlStrcmp(effect_type, (const xmlChar *) "shimmer") == 0) {
         *frame = (struct frame_t) {
                 .action = LOR_ACTION_CHANNEL_SHIMMER
         };
 
-        return true;
-    } else if (xmlStrcmp(effect_type, (const xmlChar *) "twinkle") == 0) {
+        return_code = true;
+        goto lormedia_get_frame_return;
+    }
+
+    if (xmlStrcmp(effect_type, (const xmlChar *) "twinkle") == 0) {
         *frame = (struct frame_t) {
                 .action = LOR_ACTION_CHANNEL_TWINKLE
         };
 
-        return true;
+        return_code = true;
+        goto lormedia_get_frame_return;
     }
 
-    return false;
+    lormedia_get_frame_return:
+    free(effect_type);
+
+    return return_code;
 }
 
 int lormedia_sequence_load(const char *sequence_file,
@@ -252,7 +270,7 @@ int lormedia_sequence_load(const char *sequence_file,
                     struct frame_t frame = FRAME_EMPTY;
 
                     if (!lormedia_get_frame(effect_node, &frame, start_cs, end_cs)) {
-                        char *type_prop = xml_get_property(effect_node, "type");
+                        xmlChar *type_prop = xmlGetProp(effect_node, (const xmlChar *) "type");
                         fprintf(stderr, "unable to get effect frame: %s\n", type_prop);
                         free(type_prop);
 
