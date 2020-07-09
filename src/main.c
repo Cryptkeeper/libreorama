@@ -154,9 +154,17 @@ int main(int argc,
             case 'l':
                 is_infinite_loop = true;
                 break;
-            case 'p':
-                initial_frame_buffer_length = (size_t) strtol(optarg, NULL, 10);
+            case 'p': {
+                long initial_frame_buffer_lengthl = strtol(optarg, NULL, 10);
+
+                // bounds checking before casting to size_t
+                // this is mostly used for the < 0 check to prevent negative input
+                if (initial_frame_buffer_lengthl < 0 || initial_frame_buffer_lengthl > SIZE_T_MAX) {
+                    fprintf(stderr, "invalid frame buffer length: %ld\n", initial_frame_buffer_lengthl);
+                }
+                initial_frame_buffer_length = (size_t) initial_frame_buffer_lengthl;
                 break;
+            }
         }
     }
 
