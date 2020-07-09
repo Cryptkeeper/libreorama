@@ -23,7 +23,6 @@
  */
 #include "lormedia.h"
 
-#include <stdio.h>
 #include <string.h>
 
 #include <libxml/tree.h>
