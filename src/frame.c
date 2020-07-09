@@ -34,19 +34,6 @@ const struct frame_buffer_t FRAME_BUFFER_EMPTY = (struct frame_buffer_t) {
         .max_length = 0,
 };
 
-bool frame_equals(frame_t a,
-                  frame_t b) {
-    if (a.action == b.action) {
-        switch (a.action) {
-            case LOR_ACTION_CHANNEL_SET_BRIGHTNESS:
-                return a.brightness == b.brightness;
-            default:
-                return false;
-        }
-    }
-    return false;
-}
-
 void frame_buffer_free(struct frame_buffer_t *frame_buffer) {
     if (frame_buffer->data != NULL) {
         free(frame_buffer->data);

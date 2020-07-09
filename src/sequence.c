@@ -86,11 +86,12 @@ int sequence_merge_frame_data(struct sequence_t *sequence) {
     }
 
     printf("merging %zu frame data allocations (%zu bytes) into %zu bytes\n", sequence->channels_count,
-           sizeof(frame_t) * sum_count_max, sizeof(frame_t) * sum_count);
+           sizeof(struct frame_t) * sum_count_max, sizeof(struct frame_t) * sum_count);
 
     // allocate a single block of sum_count size
     // various subsections of this will be passed to each channel
-    frame_t *merged_frame_data = malloc(sizeof(frame_t) * sum_count);
+    // this alloc does not need to be zeroed since it will be completely overwritten
+    struct frame_t *merged_frame_data = malloc(sizeof(struct frame_t) * sum_count);
 
     if (merged_frame_data == NULL) {
         return 1;
@@ -104,7 +105,7 @@ int sequence_merge_frame_data(struct sequence_t *sequence) {
         // copy channel's frame_data into merged_frame_data
         // free the previous memory allocation
         memcpy(merged_frame_data + merged_frame_data_index, channel->frame_data, channel->frame_data_count);
-        
+
         free(channel->frame_data);
 
         // point channel's frame_data to the new slice

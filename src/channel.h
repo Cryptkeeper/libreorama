@@ -31,24 +31,22 @@
 #include "frame.h"
 
 struct channel_t {
-    lor_unit_t    unit;
-    lor_channel_t channel;
-    frame_t       *frame_data;
-    frame_index_t frame_data_count;
-    frame_index_t frame_data_count_max;
-    frame_t       last_frame_data;
-    frame_index_t first_frame_offset;
+    lor_unit_t     unit;
+    lor_channel_t  channel;
+    struct frame_t *frame_data;
+    frame_index_t  frame_data_count;
+    frame_index_t  frame_data_count_max;
+    frame_index_t  first_frame_offset;
     bool has_first_frame_offset;
 };
 
 extern const struct channel_t CHANNEL_EMPTY;
 
-frame_t *channel_get_frame(const struct channel_t *channel,
-                           frame_index_t frame_index);
+struct frame_t *channel_get_frame(const struct channel_t *channel,
+                                  frame_index_t frame_index);
 
 int channel_set_frame_data(struct channel_t *channel,
-                           frame_index_t frame_index_start,
-                           frame_index_t frame_index_end,
-                           frame_t frame);
+                           frame_index_t frame_index,
+                           struct frame_t frame);
 
 #endif //LIBREORAMA_CHANNEL_H

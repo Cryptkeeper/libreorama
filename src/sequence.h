@@ -34,7 +34,7 @@ struct sequence_t {
     frame_index_t    frame_count;
     size_t           channels_count;
     struct channel_t *channels;
-    frame_t          *merged_frame_data;
+    struct frame_t   *merged_frame_data;
 };
 
 void sequence_free(struct sequence_t *sequence);

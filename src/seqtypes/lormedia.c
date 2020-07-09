@@ -124,7 +124,9 @@ static lor_brightness_t lormedia_get_effect_brightness(unsigned char effect_inte
 }
 
 static bool lormedia_get_frame(const xmlNode *effect_node,
-                               frame_t *frame) {
+                               struct frame_t *frame,
+                               long start_cs,
+                               long end_cs) {
     xmlChar *effect_type = xmlGetProp(effect_node, (const xmlChar *) "type");
 
     if (effect_node == NULL) {
@@ -138,40 +140,44 @@ static bool lormedia_get_frame(const xmlNode *effect_node,
         if (xmlHasProp(effect_node, (const xmlChar *) "intensity")) {
             const unsigned char intensity = xml_get_propertyl(effect_node, "intensity");
 
-            *frame = (frame_t) {
-                    .has_metadata = true,
+            struct effect_set_brightness_t brightness = (struct effect_set_brightness_t) {
+                    .brightness = lormedia_get_effect_brightness(intensity)
+            };
+
+            *frame = (struct frame_t) {
                     .action = LOR_ACTION_CHANNEL_SET_BRIGHTNESS,
-                    .brightness = lormedia_get_effect_brightness(intensity),
+                    .brightness = brightness,
             };
 
             return true;
         }
 
         if (xmlHasProp(effect_node, (const xmlChar *) "startIntensity") && xmlHasProp(effect_node, (const xmlChar *) "endIntensity")) {
-            const unsigned char startIntensity = xml_get_propertyl(effect_node, "startIntensity");
-            const unsigned char endIntensity   = xml_get_propertyl(effect_node, "endIntensity");
+            const unsigned char start_intensity = xml_get_propertyl(effect_node, "startIntensity");
+            const unsigned char end_intensity   = xml_get_propertyl(effect_node, "endIntensity");
 
-            *frame = (frame_t) { // fixme: fading
-                    .has_metadata = true,
-                    .action = LOR_ACTION_CHANNEL_SET_BRIGHTNESS,
-                    .brightness = lormedia_get_effect_brightness(startIntensity),
+            struct effect_fade_t fade = (struct effect_fade_t) {
+                    .from = lormedia_get_effect_brightness(start_intensity),
+                    .to = lormedia_get_effect_brightness(end_intensity),
+                    .duration = lor_duration_of((float) (end_cs - start_cs) / 100.0f),
+            };
+
+            *frame = (struct frame_t) {
+                    .action = LOR_ACTION_CHANNEL_FADE,
+                    .fade = fade,
             };
 
             return true;
         }
     } else if (xmlStrcmp(effect_type, (const xmlChar *) "shimmer") == 0) {
-        *frame = (frame_t) {
-                .has_metadata = true,
-                .action = LOR_ACTION_CHANNEL_SHIMMER,
-                .brightness = LOR_BRIGHTNESS_MAX
+        *frame = (struct frame_t) {
+                .action = LOR_ACTION_CHANNEL_SHIMMER
         };
 
         return true;
     } else if (xmlStrcmp(effect_type, (const xmlChar *) "twinkle") == 0) {
-        *frame = (frame_t) {
-                .has_metadata = true,
-                .action = LOR_ACTION_CHANNEL_TWINKLE,
-                .brightness = LOR_BRIGHTNESS_MAX
+        *frame = (struct frame_t) {
+                .action = LOR_ACTION_CHANNEL_TWINKLE
         };
 
         return true;
@@ -243,9 +249,12 @@ int lormedia_sequence_load(const char *sequence_file,
                         sequence->step_time_ms = current_step_time_ms;
                     }
 
-                    frame_t frame;
+                    struct frame_t frame;
 
-                    if (!lormedia_get_frame(effect_node, &frame)) {
+                    // ensure frame is zeroed out
+                    memset(&frame, 0, sizeof(struct frame_t));
+
+                    if (!lormedia_get_frame(effect_node, &frame, start_cs, end_cs)) {
                         char *type_prop = xml_get_property(effect_node, "type");
                         fprintf(stderr, "unable to get effect frame: %s\n", type_prop);
                         free(type_prop);
@@ -254,14 +263,12 @@ int lormedia_sequence_load(const char *sequence_file,
                         goto lormedia_free;
                     }
 
-                    // todo: move into #get_frame, allow frames across frame indexes
                     // from start/end_cs_prop (start time in centiseconds), scale against step_time_ms
                     //  to determine the frame_index for this effect_node
                     // this is because effect_nodes may be out of order, or in variable interval
                     const frame_index_t frame_index_start = (start_cs * 10) / sequence->step_time_ms;
-                    const frame_index_t frame_index_end   = (end_cs * 10) / sequence->step_time_ms;
 
-                    if (channel_set_frame_data(channel_ptr, frame_index_start, frame_index_end, frame)) {
+                    if (channel_set_frame_data(channel_ptr, frame_index_start, frame)) {
                         perror("failed to set frame data");
                         return_code = 1;
                         goto lormedia_free;

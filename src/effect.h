@@ -21,41 +21,19 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef LIBREORAMA_FRAME_H
-#define LIBREORAMA_FRAME_H
+#ifndef LIBREORAMA_EFFECT_H
+#define LIBREORAMA_EFFECT_H
 
-#include <stdbool.h>
-#include <stddef.h>
+#include <lightorama/protocol.h>
 
-#include "effect.h"
-
-struct frame_t {
-    lor_channel_action_t action;
-    union {
-        struct effect_set_brightness_t brightness;
-        struct effect_fade_t           fade;
-    };
+struct effect_set_brightness_t {
+    lor_brightness_t brightness;
 };
 
-typedef unsigned short frame_index_t;
-
-struct frame_buffer_t {
-    unsigned char *data;
-    size_t        written_length;
-    size_t        max_length;
+struct effect_fade_t {
+    lor_brightness_t from;
+    lor_brightness_t to;
+    lor_duration_t   duration;
 };
 
-extern const struct frame_buffer_t FRAME_BUFFER_EMPTY;
-
-void frame_buffer_free(struct frame_buffer_t *frame_buffer);
-
-int frame_buffer_alloc(struct frame_buffer_t *frame_buffer,
-                       size_t initial_length);
-
-int frame_buffer_get_blob(struct frame_buffer_t *frame_buffer,
-                          unsigned char **blob,
-                          size_t blob_length);
-
-int frame_buffer_reset(struct frame_buffer_t *frame_buffer);
-
-#endif //LIBREORAMA_FRAME_H
+#endif //LIBREORAMA_EFFECT_H

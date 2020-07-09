@@ -34,13 +34,20 @@
 
 static int encode_frame(unsigned char *blob,
                         struct channel_t *channel,
-                        frame_t frame) {
+                        struct frame_t frame) {
     switch (frame.action) {
         case LOR_ACTION_CHANNEL_SET_BRIGHTNESS:
-            return lor_write_channel_set_brightness(channel->unit, LOR_CHANNEL_ID, channel->channel - 1, frame.brightness, blob);
+            return lor_write_channel_set_brightness(channel->unit, LOR_CHANNEL_ID,
+                                                    channel->channel - 1, frame.brightness.brightness, blob);
+
+        case LOR_ACTION_CHANNEL_FADE:
+            return lor_write_channel_fade(channel->unit, LOR_CHANNEL_ID,
+                                          channel->channel - 1, frame.fade.from, frame.fade.to, frame.fade.duration, blob);
+
         case LOR_ACTION_CHANNEL_SHIMMER:
         case LOR_ACTION_CHANNEL_TWINKLE:
             return lor_write_channel_action(channel->unit, LOR_CHANNEL_ID, channel->channel - 1, frame.action, blob);
+
         default:
             fprintf(stderr, "failed to encode frame, unsupported action: %d\n", frame.action);
             return -1;
@@ -65,7 +72,7 @@ int encode_sequence_frame(struct frame_buffer_t *frame_buffer,
 
     for (size_t i = 0; i < sequence->channels_count; i++) {
         struct channel_t *channel = &sequence->channels[i];
-        const frame_t    *frame   = channel_get_frame(channel, frame_index);
+        struct frame_t   *frame   = channel_get_frame(channel, frame_index);
 
         if (frame == NULL) {
             continue;
@@ -73,24 +80,27 @@ int encode_sequence_frame(struct frame_buffer_t *frame_buffer,
 
         // prevent writing duplicate updates
         // the LOR protocol is stateful and this causes "reset" glithes
-        if (!frame_equals(*frame, channel->last_frame_data)) {
-            channel->last_frame_data = *frame;
+        // fixme: diffing
 
-            if (frame_buffer_get_blob(frame_buffer, &blob, ENCODE_MAXIMUM_BLOB_LENGTH)) {
-                perror("failed to get frame buffer blob (channel frame)");
-                return 1;
-            }
-
-            int written;
-            if ((written = encode_frame(blob, channel, *frame)) < 0) {
-                // <0 returns indicate internal error
-                return 1;
-            }
-
-            // move the writer index forward
-            // written may be >=0
-            frame_buffer->written_length += written;
+        if (frame_buffer_get_blob(frame_buffer, &blob, ENCODE_MAXIMUM_BLOB_LENGTH)) {
+            perror("failed to get frame buffer blob (channel frame)");
+            return 1;
         }
+
+        int written;
+        if ((written = encode_frame(blob, channel, *frame)) < 0) {
+            // <0 returns indicate internal error
+            return 1;
+        }
+
+        if (written > ENCODE_MAXIMUM_BLOB_LENGTH) {
+            fprintf(stderr, "written %d exceeds maximum blob length! %d\n", written, ENCODE_MAXIMUM_BLOB_LENGTH);
+            return 1;
+        }
+
+        // move the writer index forward
+        // written may be >=0
+        frame_buffer->written_length += written;
     }
 
     return 0;
