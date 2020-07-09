@@ -39,6 +39,9 @@ struct frame_t {
 
 static const struct frame_t FRAME_EMPTY;
 
+bool frame_equals(struct frame_t a,
+                  struct frame_t b);
+
 typedef unsigned short frame_index_t;
 
 struct frame_buffer_t {

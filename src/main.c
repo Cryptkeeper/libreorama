@@ -36,7 +36,7 @@ static void print_usage(void) {
     printf("\t-b <serial port baud rate> (defaults to 19200)\n");
     printf("\t-f <show file path> (defaults to \"show.txt\")\n");
     printf("\t-l loop show infinitely (defaults to false)\n");
-    printf("\t-p pre-allocated frame buffer length (defaults to 0 bytes)\n");
+    printf("\t-p pre-allocated frame buffer (defaults to 0 bytes)\n");
 }
 
 static struct sp_port        *serial_port = NULL;
@@ -46,6 +46,7 @@ static struct player_t       player;
 static enum sp_return sp_init_port(const char *device_name,
                                    int baud_rate) {
     enum sp_return err;
+
     if ((err = sp_get_port_by_name(device_name, &serial_port)) != SP_OK) {
         sp_perror(err, "failed to get serial port by name");
         return err;
@@ -58,6 +59,7 @@ static enum sp_return sp_init_port(const char *device_name,
         sp_perror(err, "failed to set serial port baud");
         return err;
     }
+
     return SP_OK;
 }
 
@@ -89,14 +91,13 @@ static void handle_exit(void) {
     }
 }
 
-static int handle_frame_interrupt(void) {
+static int handle_frame_interrupt(unsigned short step_time_ms) {
     if (frame_buffer.written_length > 0) {
         enum sp_return sp_return;
 
-        // todo: feed in timeout_ms using step_time_ms
-
         // sp_nonblocking_write returns bytes written when non-error (<0 - SP_OK)
-        if ((sp_return = sp_blocking_write(serial_port, frame_buffer.data, frame_buffer.written_length, 20)) < SP_OK) {
+        // feed step_time_ms as timeout to avoid blocking writes from stalling playback
+        if ((sp_return = sp_blocking_write(serial_port, frame_buffer.data, frame_buffer.written_length, step_time_ms)) < SP_OK) {
             sp_perror(sp_return, "failed to write frame data to serial port");
             return 1;
         }

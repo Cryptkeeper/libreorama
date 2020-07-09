@@ -266,7 +266,7 @@ int player_start(struct player_t *player,
         }
 
         int frame_interrupt_err;
-        if ((frame_interrupt_err = frame_interrupt())) {
+        if ((frame_interrupt_err = frame_interrupt(current_sequence.step_time_ms))) {
             fprintf(stderr, "frame interrupt handler returned %d\n", frame_interrupt_err);
             return frame_interrupt_err;
         }
@@ -305,7 +305,7 @@ int player_start(struct player_t *player,
     }
 
     int frame_interrupt_err;
-    if ((frame_interrupt_err = frame_interrupt())) {
+    if ((frame_interrupt_err = frame_interrupt(current_sequence.step_time_ms))) {
         fprintf(stderr, "frame interrupt handler returned %d\n", frame_interrupt_err);
         return frame_interrupt_err;
     }

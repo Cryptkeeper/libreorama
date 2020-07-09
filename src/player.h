@@ -43,7 +43,7 @@ struct player_t {
     bool has_al_buffer: 1;
 };
 
-typedef int (*player_frame_interrupt_t)(void);
+typedef int (*player_frame_interrupt_t)(unsigned short step_time_ms);
 
 int player_init(struct player_t *player,
                 int is_infinite_loop,

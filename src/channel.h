@@ -38,6 +38,7 @@ struct channel_t {
     frame_index_t  frame_data_count_max;
     frame_index_t  first_frame_offset;
     bool has_first_frame_offset;
+    struct frame_t *last_sent_frame;
 };
 
 static const struct channel_t CHANNEL_EMPTY;

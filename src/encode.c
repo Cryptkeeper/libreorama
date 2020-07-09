@@ -79,8 +79,12 @@ int encode_sequence_frame(struct frame_buffer_t *frame_buffer,
         }
 
         // prevent writing duplicate updates
-        // the LOR protocol is stateful and this causes "reset" glithes
-        // fixme: diffing
+        // the LOR protocol is stateful and this causes "reset" glitches
+        if (channel->last_sent_frame != NULL && frame_equals(*channel->last_sent_frame, *frame)) {
+            continue;
+        }
+
+        channel->last_sent_frame = frame;
 
         if (frame_buffer_get_blob(frame_buffer, &blob, ENCODE_MAXIMUM_BLOB_LENGTH)) {
             perror("failed to get frame buffer blob (channel frame)");

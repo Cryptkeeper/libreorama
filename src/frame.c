@@ -28,6 +28,29 @@
 
 #define FRAME_BUFFER_LENGTH_GROW_SCALE 2
 
+bool frame_equals(struct frame_t a,
+                  struct frame_t b) {
+    if (a.action != b.action) {
+        return false;
+    }
+
+    switch (a.action) {
+        case LOR_ACTION_CHANNEL_SET_BRIGHTNESS:
+            return a.brightness.brightness == b.brightness.brightness;
+
+        case LOR_ACTION_CHANNEL_FADE:
+            return a.fade.from == b.fade.from && a.fade.to == b.fade.to && a.fade.duration == b.fade.duration;
+
+        case LOR_ACTION_CHANNEL_TWINKLE:
+        case LOR_ACTION_CHANNEL_SHIMMER:
+            return true;
+
+        default:
+            fprintf(stderr, "unable to compare frame equality: %d", a.action);
+            return false;
+    }
+}
+
 void frame_buffer_free(struct frame_buffer_t *frame_buffer) {
     if (frame_buffer->data != NULL) {
         free(frame_buffer->data);
@@ -94,8 +117,6 @@ int frame_buffer_get_blob(struct frame_buffer_t *frame_buffer,
 }
 
 int frame_buffer_reset(struct frame_buffer_t *frame_buffer) {
-    // todo: downscaling memory allocation as needed
-
     // reset the writer index
     frame_buffer->written_length = 0;
 
