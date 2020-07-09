@@ -28,14 +28,18 @@
 #include <string.h>
 #include <unistd.h>
 
-char *audio_find_sequence_file(const char *sequence_file,
-                               const char *audio_file_hint) {
+#include "lbrerr.h"
+
+int audio_find_sequence_file(const char *sequence_file,
+                             const char *audio_file_hint,
+                             char **audio_file) {
     // test if audio_file_hint exists before loading
     // if not, attempt to locate a fallback using a basic pattern
     if (audio_file_hint == NULL) {
         fprintf(stderr, "sequence file returned no audio file hint\n");
     } else if (access(audio_file_hint, F_OK) != -1) {
-        return (char *) audio_file_hint;
+        *audio_file = (char *) audio_file_hint;
+        return 0;
     } else {
         fprintf(stderr, "audio file hint \"%s\" does not exist!\n", audio_file_hint);
     }
@@ -50,7 +54,7 @@ char *audio_find_sequence_file(const char *sequence_file,
     char         *buf = malloc(len + file_ext_len + 1);
 
     if (buf == NULL) {
-        return buf;
+        return LBR_EERRNO;
     }
 
     // copy the sequence_file string & append an explicit file extension
@@ -61,5 +65,7 @@ char *audio_find_sequence_file(const char *sequence_file,
     // ensure the string is null terminated
     buf[len + file_ext_len] = 0;
 
-    return buf;
+    *audio_file = buf;
+
+    return 0;
 }

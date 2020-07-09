@@ -13,7 +13,7 @@ if (APPLE)
     link_directories(/usr/local/lib)
 endif ()
 
-add_executable(libreorama src/main.c src/player.h src/player.c src/err.h src/err.c src/file.c src/file.h src/sequence.c src/sequence.h src/seqtypes/lormedia.c src/seqtypes/lormedia.h src/encode.h src/encode.c src/frame.h src/channel.c src/channel.h src/frame.c src/audio.c src/audio.h src/effect.h)
+add_executable(libreorama src/main.c src/player.h src/player.c src/err.h src/err.c src/file.c src/file.h src/sequence.c src/sequence.h src/seqtypes/lormedia.c src/seqtypes/lormedia.h src/encode.h src/encode.c src/frame.h src/channel.c src/channel.h src/frame.c src/audio.c src/audio.h src/effect.h src/lbrerr.c src/lbrerr.h)
 
 if (APPLE)
     target_link_libraries(libreorama liblightorama.a libserialport.a libalut.a libxml2.a)

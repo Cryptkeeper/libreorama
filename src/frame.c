@@ -26,6 +26,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "lbrerr.h"
+
 #define FRAME_BUFFER_LENGTH_GROW_SCALE 2
 
 bool frame_equals(struct frame_t a,
@@ -69,7 +71,7 @@ int frame_buffer_alloc(struct frame_buffer_t *frame_buffer,
     frame_buffer->max_length = initial_length;
 
     if (frame_buffer->data == NULL) {
-        return 1;
+        return LBR_EERRNO;
     }
 
     return 0;
@@ -99,7 +101,7 @@ int frame_buffer_get_blob(struct frame_buffer_t *frame_buffer,
     unsigned char *data = realloc(frame_buffer->data, realloc_max_length);
 
     if (data == NULL) {
-        return 1;
+        return LBR_EERRNO;
     }
 
     fprintf(stderr, "reallocated frame buffer to %zu bytes (increase pre-allocation?)\n", realloc_max_length);

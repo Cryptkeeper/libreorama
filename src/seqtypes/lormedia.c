@@ -28,6 +28,8 @@
 
 #include <libxml/tree.h>
 
+#include "../lbrerr.h"
+
 #define LORMEDIA_MAX_INTENSITY 100
 
 static xmlNode *xml_find_node_next(const xmlNode *root,
@@ -71,13 +73,16 @@ static xmlNode *xml_find_node_child(const xmlNode *parent,
 // finds the node property, if any, and copies the string into a char *buffer
 // the buffer must be manually freed by the caller function
 // returns NULL if the node does not contain the property or malloc fails
-static char *xml_get_property(const xmlNode *node,
-                              const char *key) {
+static int xml_get_property(const xmlNode *node,
+                            const char *key,
+                            char **out) {
     xmlChar *value = xmlGetProp(node, (const xmlChar *) key);
 
     if (value == NULL) {
-        return NULL;
+        return 0;
     }
+
+    int return_code = 0;
 
     // determine the string's length and allocate a copy buffer
     // size for + 1 to ensure null termination
@@ -85,7 +90,7 @@ static char *xml_get_property(const xmlNode *node,
     char         *copy   = malloc(str_len + 1);
 
     if (copy == NULL) {
-        perror("failed to allocate string buffer in xml_get_property");
+        return_code = LBR_EERRNO;
         goto xml_get_property_free;
     }
 
@@ -97,11 +102,13 @@ static char *xml_get_property(const xmlNode *node,
     // explicitly null terminate the string
     copy[str_len] = 0;
 
+    *out = copy;
+
     xml_get_property_free:
     // free the allocated xmlChar *string from xmlGetProp
     xmlFree((void *) value);
 
-    return copy;
+    return return_code;
 }
 
 static long xml_get_propertyl(const xmlNode *node,
@@ -122,17 +129,19 @@ static unsigned char lormedia_effect_brightness(unsigned char effect_intensity) 
     return (unsigned char) (((float) effect_intensity / 100.0f) * 255);
 }
 
-static bool lormedia_get_frame(const xmlNode *effect_node,
-                               struct frame_t *frame,
-                               unsigned long start_cs,
-                               unsigned long end_cs) {
+static int lormedia_get_frame(const xmlNode *effect_node,
+                              struct frame_t *frame,
+                              unsigned long start_cs,
+                              unsigned long end_cs) {
     xmlChar *effect_type = xmlGetProp(effect_node, (const xmlChar *) "type");
 
     if (effect_type == NULL) {
-        return false;
+        return LBR_LOADER_EMALFDATA;
     }
 
-    bool    return_code  = false;
+    // return_code is zeroed whenever frame is defined
+    // this prevents accidental flagging from complex logic
+    int return_code = LBR_LOADER_EUNSUPDATA;
 
     // intensity effect comes in 2 forms
     // - contains "intensity" property to set the target brightness to
@@ -155,7 +164,7 @@ static bool lormedia_get_frame(const xmlNode *effect_node,
                 };
             }
 
-            return_code = true;
+            return_code = 0;
             goto lormedia_get_frame_return;
         }
 
@@ -174,7 +183,7 @@ static bool lormedia_get_frame(const xmlNode *effect_node,
                     }
             };
 
-            return_code = true;
+            return_code = 0;
             goto lormedia_get_frame_return;
         }
     }
@@ -184,7 +193,7 @@ static bool lormedia_get_frame(const xmlNode *effect_node,
                 .action = LOR_ACTION_CHANNEL_SHIMMER
         };
 
-        return_code = true;
+        return_code = 0;
         goto lormedia_get_frame_return;
     }
 
@@ -193,7 +202,7 @@ static bool lormedia_get_frame(const xmlNode *effect_node,
                 .action = LOR_ACTION_CHANNEL_TWINKLE
         };
 
-        return_code = true;
+        return_code = 0;
         goto lormedia_get_frame_return;
     }
 
@@ -215,8 +224,7 @@ int lormedia_sequence_load(const char *sequence_file,
     xmlDocPtr doc = xmlReadFile(sequence_file, NULL, 0);
 
     if (doc == NULL) {
-        perror("failed to parse XML file");
-        return_code = 1;
+        return_code = LBR_EERRNO;
         goto lormedia_free;
     }
 
@@ -225,7 +233,10 @@ int lormedia_sequence_load(const char *sequence_file,
     const xmlNode *root_element     = xmlDocGetRootElement(doc);
     const xmlNode *sequence_element = xml_find_node_next(root_element, "sequence");
 
-    *audio_file_hint = xml_get_property(sequence_element, "musicFilename");
+    int err;
+    if ((err = xml_get_property(sequence_element, "musicFilename", audio_file_hint))) {
+        return err;
+    }
 
     // find the <channels> element and iterate over each children's children
     // use the startCentisecond & endCentisecond properties to understand each effects time length
@@ -245,9 +256,8 @@ int lormedia_sequence_load(const char *sequence_file,
             // append the channel_node to the sequence channels
             struct channel_t *channel_ptr = NULL;
 
-            if (sequence_add_channel(sequence, unit, channel, &channel_ptr)) {
-                perror("failed to add index");
-                return_code = 1;
+            if ((err = sequence_add_channel(sequence, unit, channel, &channel_ptr))) {
+                return_code = err;
                 goto lormedia_free;
             }
 
@@ -262,12 +272,8 @@ int lormedia_sequence_load(const char *sequence_file,
 
                     struct frame_t frame = FRAME_EMPTY;
 
-                    if (!lormedia_get_frame(effect_node, &frame, start_cs, end_cs)) {
-                        xmlChar *type_prop = xmlGetProp(effect_node, (const xmlChar *) "type");
-                        fprintf(stderr, "unable to get effect frame: %s\n", type_prop);
-                        free(type_prop);
-
-                        return_code = 1;
+                    if ((err = lormedia_get_frame(effect_node, &frame, start_cs, end_cs))) {
+                        return_code = err;
                         goto lormedia_free;
                     }
 
@@ -283,9 +289,8 @@ int lormedia_sequence_load(const char *sequence_file,
                     // this is because effect_nodes may be out of order, or in variable interval
                     const frame_index_t frame_index_start = (frame_index_t) ((start_cs * 10) / sequence->step_time_ms);
 
-                    if (channel_set_frame_data(channel_ptr, frame_index_start, frame)) {
-                        perror("failed to set frame data");
-                        return_code = 1;
+                    if ((err = channel_set_frame_data(channel_ptr, frame_index_start, frame))) {
+                        return_code = err;
                         goto lormedia_free;
                     }
                 }

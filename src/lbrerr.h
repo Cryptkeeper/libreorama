@@ -21,11 +21,29 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef LIBREORAMA_AUDIO_H
-#define LIBREORAMA_AUDIO_H
+#ifndef LIBREORAMA_LBRERR_H
+#define LIBREORAMA_LBRERR_H
 
-int audio_find_sequence_file(const char *sequence_file,
-                             const char *audio_file_hint,
-                             char **audio_file);
+#define LBR_EERRNO                  1
+#define LBR_EALERR                  2
+#define LBR_ESPERR                  3
 
-#endif //LIBREORAMA_AUDIO_H
+#define LBR_SEQUENCE_ENOFRAMES      4
+#define LBR_SEQUENCE_EWRITEINDEX    5
+
+#define LBR_PLAYER_EUNSUPEXT        6
+#define LBR_PLAYER_EBADEXT          7
+#define LBR_PLAYER_ESHOWEMPTY       8
+
+#define LBR_ENCODE_EBLOBTOOSMALL    9
+#define LBR_ENCODE_EUNSUPACTION     10
+
+#define LBR_LOADER_EMALFDATA        11
+#define LBR_LOADER_EUNSUPDATA       12
+
+void lbr_perror(int err,
+                const char *msg);
+
+char *lbr_error_string(int err);
+
+#endif //LIBREORAMA_LBRERR_H

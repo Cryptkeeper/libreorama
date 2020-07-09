@@ -35,7 +35,7 @@
 ALenum al_get_error();
 
 void al_perror(ALenum err,
-               char *msg);
+               const char *msg);
 
 char *al_error_string(ALenum err);
 

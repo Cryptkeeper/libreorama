@@ -37,7 +37,7 @@ ALenum al_get_error() {
 }
 
 void al_perror(ALenum err,
-               char *msg) {
+               const char *msg) {
     // avoid calls with NO_ERROR conditions
     // this abuses the fact AL_NO_ERROR & ALUT_ERROR_NO_ERROR are 0 value
     if (!err) {
@@ -80,7 +80,7 @@ char *al_error_string(ALenum err) {
         case AL_OUT_OF_MEMORY:
             return "AL_OUT_OF_MEMORY";
         default:
-            return "unknown ALenum error value";
+            return "unknown ALenum error";
     }
 }
 
@@ -109,6 +109,6 @@ char *sp_error_string(enum sp_return sp_return) {
         case SP_ERR_MEM:
             return "SP_ERR_MEM";
         default:
-            return "unknown sp_return error value";
+            return "unknown sp_return error";
     }
 }

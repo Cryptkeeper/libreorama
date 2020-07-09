@@ -26,6 +26,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lbrerr.h"
+
 #define CHANNEL_FRAME_DATA_COUNT_DEFAULT 512
 #define CHANNEL_FRAME_DATA_COUNT_GROW_SCALE 2
 
@@ -91,7 +93,7 @@ int channel_set_frame_data(struct channel_t *channel,
         struct frame_t *frame_data = realloc(channel->frame_data, sizeof(struct frame_t) * resized_count_max);
 
         if (frame_data == NULL) {
-            return 1;
+            return LBR_EERRNO;
         }
 
         // ensure the newly allocated memory portion is zeroed

@@ -27,6 +27,7 @@
 #include <getopt.h>
 
 #include "err.h"
+#include "lbrerr.h"
 #include "player.h"
 
 static void print_usage(void) {
@@ -43,24 +44,23 @@ static struct sp_port        *serial_port = NULL;
 static struct frame_buffer_t frame_buffer;
 static struct player_t       player;
 
-static enum sp_return sp_init_port(const char *device_name,
-                                   int baud_rate) {
+static int sp_init_port(const char *device_name,
+                        int baud_rate) {
     enum sp_return err;
-
     if ((err = sp_get_port_by_name(device_name, &serial_port)) != SP_OK) {
         sp_perror(err, "failed to get serial port by name");
-        return err;
+        return LBR_ESPERR;
     }
     if ((err = sp_open(serial_port, SP_MODE_WRITE)) != SP_OK) {
         sp_perror(err, "failed to open serial port for writing");
-        return err;
+        return LBR_ESPERR;
     }
     if ((err = sp_set_baudrate(serial_port, baud_rate)) != SP_OK) {
         sp_perror(err, "failed to set serial port baud");
-        return err;
+        return LBR_ESPERR;
     }
 
-    return SP_OK;
+    return 0;
 }
 
 static void handle_exit(void) {
@@ -87,7 +87,7 @@ static void handle_exit(void) {
 
     ALenum err;
     if ((err = al_get_error())) {
-        al_perror(err, "failed to exut ALUT");
+        al_perror(err, "failed to exit ALUT");
     }
 }
 
@@ -99,15 +99,16 @@ static int handle_frame_interrupt(unsigned short step_time_ms) {
         // feed step_time_ms as timeout to avoid blocking writes from stalling playback
         if ((sp_return = sp_blocking_write(serial_port, frame_buffer.data, frame_buffer.written_length, step_time_ms)) < SP_OK) {
             sp_perror(sp_return, "failed to write frame data to serial port");
-            return 1;
+            return LBR_ESPERR;
         }
     }
 
     // reset the frame buffer writer back to 0
     // always fire regardless of written_length so that it may sample 0 values
     // this may internally downsize the backing memory block as needed
-    if (frame_buffer_reset(&frame_buffer)) {
-        return 1;
+    int err;
+    if ((err = frame_buffer_reset(&frame_buffer))) {
+        return err;
     }
 
     return 0;
@@ -182,16 +183,18 @@ int main(int argc,
 
     // initialize the serial port name from argv
     // cleanup of any successfully opened sp_port is handled by #handle_exit
-    if (sp_init_port(argv[0], baud_rate) != SP_OK) {
+    int err;
+    if ((err = sp_init_port(argv[0], baud_rate))) {
+        lbr_perror(err, "failed to initialize serial port");
         return 1;
     }
 
     // initialize ALUT
     alutInit(NULL, NULL);
 
-    ALenum err;
-    if ((err = al_get_error())) {
-        al_perror(err, "failed to initialize ALUT");
+    ALenum al_err;
+    if ((al_err = al_get_error())) {
+        al_perror(al_err, "failed to initialize ALUT");
         return 1;
     }
 
@@ -202,8 +205,8 @@ int main(int argc,
     // a zero value (optional) avoids this pre-allocation and instead will
     //  require frame_buffer to allocate on the fly, increasing CPU but decreasing memory
     if (initial_frame_buffer_length > 0) {
-        if (frame_buffer_alloc(&frame_buffer, initial_frame_buffer_length)) {
-            perror("failed to pre-allocate initial frame buffer");
+        if ((err = frame_buffer_alloc(&frame_buffer, initial_frame_buffer_length))) {
+            lbr_perror(err, "failed to pre-allocate initial frame buffer");
             return 1;
         } else {
             printf("pre-allocated frame buffer of %zu bytes\n", initial_frame_buffer_length);
@@ -212,7 +215,8 @@ int main(int argc,
 
     // initialize player and load show file
     // player_init handles error printing internally
-    if (player_init(&player, is_infinite_loop, show_file_path)) {
+    if ((err = player_init(&player, is_infinite_loop, show_file_path))) {
+        lbr_perror(err, "failed to initialize player");
         return 1;
     }
 
@@ -223,7 +227,8 @@ int main(int argc,
     while (player_has_next(&player)) {
         // load and buffer the sequence
         // this will internally block for playback
-        if (player_start(&player, handle_frame_interrupt, &frame_buffer)) {
+        if ((err = player_start(&player, handle_frame_interrupt, &frame_buffer))) {
+            lbr_perror(err, "failed to start player");
             return 1;
         }
     }

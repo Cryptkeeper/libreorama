@@ -23,10 +23,10 @@
  */
 #include "encode.h"
 
-#include <stdio.h>
-
 #include <lightorama/io.h>
 #include <lightorama/brightness_curve.h>
+
+#include "lbrerr.h"
 
 // assumes no individual lor_write_* call will use more than 16 bytes
 // see https://github.com/Cryptkeeper/liblightorama#memory-allocations
@@ -37,24 +37,27 @@ static lor_brightness_t encode_brightness(unsigned char brightness) {
     return lor_brightness_curve_squared((float) brightness / 255.0f);
 }
 
-static size_t encode_frame(unsigned char *blob,
-                           struct channel_t *channel,
-                           struct frame_t frame) {
+static int encode_frame(unsigned char *blob,
+                        struct channel_t *channel,
+                        struct frame_t frame,
+                        size_t *written) {
     switch (frame.action) {
         case LOR_ACTION_CHANNEL_SET_BRIGHTNESS:
-            return lor_write_channel_set_brightness(channel->unit, LOR_CHANNEL_ID, channel->channel, encode_brightness(frame.fade.to), blob);
+            *written = lor_write_channel_set_brightness(channel->unit, LOR_CHANNEL_ID, channel->channel, encode_brightness(frame.fade.to), blob);
+            return 0;
 
         case LOR_ACTION_CHANNEL_FADE:
-            return lor_write_channel_fade(channel->unit, LOR_CHANNEL_ID, channel->channel, encode_brightness(frame.fade.from), encode_brightness(frame.fade.to), frame.fade.duration, blob);
+            *written = lor_write_channel_fade(channel->unit, LOR_CHANNEL_ID, channel->channel, encode_brightness(frame.fade.from), encode_brightness(frame.fade.to), frame.fade.duration, blob);
+            return 0;
 
         case LOR_ACTION_CHANNEL_ON:
         case LOR_ACTION_CHANNEL_SHIMMER:
         case LOR_ACTION_CHANNEL_TWINKLE:
-            return lor_write_channel_action(channel->unit, LOR_CHANNEL_ID, channel->channel, frame.action, blob);
+            *written = lor_write_channel_action(channel->unit, LOR_CHANNEL_ID, channel->channel, frame.action, blob);
+            return 0;
 
         default:
-            fprintf(stderr, "failed to encode frame, unsupported action: %d\n", frame.action);
-            return 0;
+            return LBR_ENCODE_EUNSUPACTION;
     }
 }
 
@@ -66,9 +69,9 @@ int encode_sequence_frame(struct frame_buffer_t *frame_buffer,
     // automatically push heartbeat messages into the frame buffer
     // this is timed for every 500ms, based off the frame index
     if (frame_index % (500 / sequence->step_time_ms) == 0) {
-        if (frame_buffer_get_blob(frame_buffer, &blob, ENCODE_MAXIMUM_BLOB_LENGTH)) {
-            perror("failed to get frame buffer blob (heartbeat)");
-            return 1;
+        int err;
+        if ((err = frame_buffer_get_blob(frame_buffer, &blob, ENCODE_MAXIMUM_BLOB_LENGTH))) {
+            return err;
         }
 
         frame_buffer->written_length += lor_write_heartbeat(blob);
@@ -90,21 +93,18 @@ int encode_sequence_frame(struct frame_buffer_t *frame_buffer,
 
         channel->last_sent_frame = frame;
 
-        if (frame_buffer_get_blob(frame_buffer, &blob, ENCODE_MAXIMUM_BLOB_LENGTH)) {
-            perror("failed to get frame buffer blob (channel frame)");
-            return 1;
+        int err;
+        if ((err = frame_buffer_get_blob(frame_buffer, &blob, ENCODE_MAXIMUM_BLOB_LENGTH))) {
+            return err;
         }
 
         size_t written;
-        if ((written = encode_frame(blob, channel, *frame)) == 0) {
-            // 0 returns indicate internal error
-            // since frames at this point are non-empty, something should always be written
-            return 1;
+        if ((err = encode_frame(blob, channel, *frame, &written))) {
+            return err;
         }
 
         if (written > ENCODE_MAXIMUM_BLOB_LENGTH) {
-            fprintf(stderr, "written %zu exceeds maximum blob length! %d\n", written, ENCODE_MAXIMUM_BLOB_LENGTH);
-            return 1;
+            return LBR_ENCODE_EBLOBTOOSMALL;
         }
 
         // move the writer index forward
@@ -118,9 +118,9 @@ int encode_sequence_frame(struct frame_buffer_t *frame_buffer,
 int encode_reset_frame(struct frame_buffer_t *frame_buffer) {
     unsigned char *blob = NULL;
 
-    if (frame_buffer_get_blob(frame_buffer, &blob, ENCODE_MAXIMUM_BLOB_LENGTH)) {
-        perror("failed to get frame buffer blob (reset)");
-        return 1;
+    int err;
+    if ((err = frame_buffer_get_blob(frame_buffer, &blob, ENCODE_MAXIMUM_BLOB_LENGTH))) {
+        return err;
     }
 
     frame_buffer->written_length += lor_write_unit_action(LOR_UNIT_ID_BROADCAST, LOR_ACTION_UNIT_OFF, blob);

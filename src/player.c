@@ -29,6 +29,7 @@
 
 #include "audio.h"
 #include "err.h"
+#include "lbrerr.h"
 #include "encode.h"
 #include "file.h"
 
@@ -42,8 +43,7 @@ static int player_load_sequence_file(struct sequence_t *current_sequence,
 
     // check dot == current_sequence_file to ignore hidden files such as "~/.lms"
     if (dot == NULL || dot == sequence_file) {
-        fprintf(stderr, "sequence \"%s\" has no file extension, unable to determine sequence type\n", sequence_file);
-        return 1;
+        return LBR_PLAYER_EBADEXT;
     }
 
     *sequence_type = sequence_type_from_file_extension(dot);
@@ -51,25 +51,21 @@ static int player_load_sequence_file(struct sequence_t *current_sequence,
     // detect failure to match the file extension to a sequence type
     // halt playback since otherwise only the audio would be played
     if (*sequence_type == SEQUENCE_TYPE_UNKNOWN) {
-        fprintf(stderr, "unknown/unsupported sequence file extension: %s\n", dot);
-        return 1;
+        return LBR_PLAYER_EUNSUPEXT;
     }
 
     const sequence_loader_t sequence_loader = sequence_type_get_loader(*sequence_type);
 
     // pass off to whatever function is provided by #sequence_type_get_loader
-    if (sequence_loader(sequence_file, audio_file_hint, current_sequence)) {
-        // each impl should internally handle errors, but a generic top level error message
-        //  is provided to prevent silent error returns caused by bad loader impls
-        fprintf(stderr, "failed to load sequence file: %s\n", sequence_file);
-        return 1;
+    int err;
+    if ((err = sequence_loader(sequence_file, audio_file_hint, current_sequence))) {
+        return err;
     }
 
     // shrink the sequence before it is passed back to the caller
     // this minimizes & merges frame_data allocations internally
-    if (sequence_merge_frame_data(current_sequence)) {
-        perror("failed to merge sequence frame data");
-        return 1;
+    if ((err = sequence_merge_frame_data(current_sequence))) {
+        return err;
     }
 
     return 0;
@@ -78,7 +74,7 @@ static int player_load_sequence_file(struct sequence_t *current_sequence,
 static int player_load_audio_file(struct player_t *player,
                                   const char *sequence_file,
                                   char *audio_file_hint) {
-    ALenum err;
+    ALenum al_err;
 
     // if an AL buffer is already initialized, unload it first
     if (player->has_al_buffer) {
@@ -88,23 +84,31 @@ static int player_load_audio_file(struct player_t *player,
         // otherwise the delete will fail since it is considered in use
         alSourceUnqueueBuffers(player->al_source, 1, &player->current_al_buffer);
 
-        if ((err = al_get_error())) {
-            al_perror(err, "failed to unqueue previous player buffer from source");
-            return 1;
+        if ((al_err = al_get_error())) {
+            al_perror(al_err, "failed to unqueue previous player buffer from source");
+            return LBR_ESPERR;
         }
 
         // delete the buffer, freeing the memory
         alDeleteBuffers(1, &player->current_al_buffer);
 
-        if ((err = al_get_error())) {
-            al_perror(err, "failed to delete previous player buffer");
-            return 1;
+        if ((al_err = al_get_error())) {
+            al_perror(al_err, "failed to delete previous player buffer");
+            return LBR_ESPERR;
         }
     }
 
     // use #audio_find_sequence_file to determine if the file exists
     // if it doesn't, it will internally attempt to locate it at another path
-    char *audio_file_or_fallback = audio_find_sequence_file(sequence_file, audio_file_hint);
+    char *audio_file_or_fallback = NULL;
+
+    int err;
+    if ((err = audio_find_sequence_file(sequence_file, audio_file_hint, &audio_file_or_fallback))) {
+        // ensure audio_file_hint is always freed
+        free(audio_file_hint);
+
+        return err;
+    }
 
     printf("using audio file: %s\n", audio_file_or_fallback);
 
@@ -120,9 +124,9 @@ static int player_load_audio_file(struct player_t *player,
     free(audio_file_hint);
 
     // test for buffering errors
-    if ((err = al_get_error())) {
-        al_perror(err, "failed to buffer audio file");
-        return 1;
+    if ((al_err = al_get_error())) {
+        al_perror(al_err, "failed to buffer audio file");
+        return LBR_ESPERR;
     }
 
     // only flag has_al_buffer as true if #al_get_error returns ok
@@ -133,9 +137,9 @@ static int player_load_audio_file(struct player_t *player,
     // this enables #player_start to simply play the source to start
     alSourcei(player->al_source, AL_BUFFER, player->current_al_buffer);
 
-    if ((err = al_get_error())) {
-        al_perror(err, "failed to assign OpenAL source buffer");
-        return 1;
+    if ((al_err = al_get_error())) {
+        al_perror(al_err, "failed to assign OpenAL source buffer");
+        return LBR_ESPERR;
     }
 
     return 0;
@@ -153,7 +157,7 @@ int player_init(struct player_t *player,
     ALenum err;
     if ((err = al_get_error())) {
         al_perror(err, "failed to generate OpenAL source");
-        return 1;
+        return LBR_ESPERR;
     }
 
     // only flag has_al_source as true if initialized without error
@@ -163,8 +167,7 @@ int player_init(struct player_t *player,
     FILE *show_file = fopen(show_file_path, "rb");
 
     if (show_file == NULL) {
-        perror("failed to open show file");
-        return 1;
+        return LBR_EERRNO;
     }
 
     // read each line of the show file into a string array
@@ -176,16 +179,13 @@ int player_init(struct player_t *player,
     fclose(show_file);
 
     // test for null result which indicates an error
-    // include additional ferror check to prevent silent errors
     if (player->sequence_files == NULL) {
-        perror("failed to read show file");
-        return 1;
+        return LBR_EERRNO;
     }
 
     // test if the show file is empty
     if (player->sequence_files_cnt == 0) {
-        fprintf(stderr, "show file is empty!\n");
-        return 1;
+        return LBR_PLAYER_ESHOWEMPTY;
     }
 
     return 0;
@@ -214,11 +214,11 @@ int player_start(struct player_t *player,
 
     char *audio_file_hint = NULL;
 
-    if (player_load_sequence_file(&current_sequence, current_sequence_file, &audio_file_hint, &sequence_type)) {
+    int err;
+    if ((err = player_load_sequence_file(&current_sequence, current_sequence_file, &audio_file_hint, &sequence_type))) {
         // ensure the allocated audio_file_hint buf is freed
         free(audio_file_hint);
-
-        return 1;
+        return err;
     }
 
     printf("sequence_file: %s\n", current_sequence_file);
@@ -230,8 +230,8 @@ int player_start(struct player_t *player,
 
     // attempt to load audio file provided by determined sequence type
     // this will delegate or fallback internally as needed
-    if (player_load_audio_file(player, current_sequence_file, audio_file_hint)) {
-        return 1;
+    if ((err = player_load_audio_file(player, current_sequence_file, audio_file_hint))) {
+        return err;
     }
 
     printf("playing...\n");
@@ -240,10 +240,10 @@ int player_start(struct player_t *player,
     // OpenAL will automatically stop playback at EOF
     alSourcePlay(player->al_source);
 
-    ALenum err;
-    if ((err = al_get_error())) {
-        al_perror(err, "failed to play OpenAL source");
-        return 1;
+    ALenum al_err;
+    if ((al_err = al_get_error())) {
+        al_perror(al_err, "failed to play OpenAL source");
+        return LBR_ESPERR;
     }
 
     ALint source_state;
@@ -260,15 +260,12 @@ int player_start(struct player_t *player,
     while (true) {
         // write the current frame index into the frame_buf
         // pass an interrupt call back to the parent
-        if (encode_sequence_frame(frame_buffer, &current_sequence, frame_index)) {
-            perror("failed to encode sequence frame");
-            return 1;
+        if ((err = encode_sequence_frame(frame_buffer, &current_sequence, frame_index))) {
+            return err;
         }
 
-        int frame_interrupt_err;
-        if ((frame_interrupt_err = frame_interrupt(current_sequence.step_time_ms))) {
-            fprintf(stderr, "frame interrupt handler returned %d\n", frame_interrupt_err);
-            return frame_interrupt_err;
+        if ((err = frame_interrupt(current_sequence.step_time_ms))) {
+            return err;
         }
 
         // move to next frame for next iteration
@@ -279,9 +276,9 @@ int player_start(struct player_t *player,
         // this helps ensure a consistent result
         alGetSourcei(player->al_source, AL_SOURCE_STATE, &source_state);
 
-        if ((err = al_get_error())) {
-            al_perror(err, "failed to get player source state");
-            return 1;
+        if ((al_err = al_get_error())) {
+            al_perror(al_err, "failed to get player source state");
+            return LBR_ESPERR;
         }
 
         // break loop prior to sleep
@@ -292,22 +289,18 @@ int player_start(struct player_t *player,
         // sleep after each loop iteration
         // this time comes from #player_load_sequence_file and should be considered dynamic
         if (nanosleep(&step_time, NULL)) {
-            perror("failed to nanosleep during playback step");
-            return 1;
+            return LBR_EERRNO;
         }
     }
 
     // encode a reset frame and trigger a final interrupt
     // this resets any active light output states
-    if (encode_reset_frame(frame_buffer)) {
-        perror("failed to encode reset frame");
-        return 1;
+    if ((err = encode_reset_frame(frame_buffer))) {
+        return err;
     }
 
-    int frame_interrupt_err;
-    if ((frame_interrupt_err = frame_interrupt(current_sequence.step_time_ms))) {
-        fprintf(stderr, "frame interrupt handler returned %d\n", frame_interrupt_err);
-        return frame_interrupt_err;
+    if ((err = frame_interrupt(current_sequence.step_time_ms))) {
+        return err;
     }
 
     // free the current sequence

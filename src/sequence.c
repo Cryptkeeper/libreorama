@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lbrerr.h"
 #include "seqtypes/lormedia.h"
 
 void sequence_free(struct sequence_t *sequence) {
@@ -35,6 +36,7 @@ void sequence_free(struct sequence_t *sequence) {
 
         // mark as null to remove dangling pointer
         // subsection pointers within channel_t are still dangling
+        // this is okay because channels are also freed
         sequence->merged_frame_data = NULL;
     }
 
@@ -54,7 +56,7 @@ int sequence_add_channel(struct sequence_t *sequence,
     struct channel_t *channels = realloc(sequence->channels, sizeof(struct channel_t) * (sequence->channels_count + 1));
 
     if (channels == NULL) {
-        return 1;
+        return LBR_EERRNO;
     }
 
     sequence->channels = channels;
@@ -84,7 +86,7 @@ int sequence_merge_frame_data(struct sequence_t *sequence) {
 
     if (sum_count == 0) {
         fprintf(stderr, "sequence contains no frame data!\n");
-        return 1;
+        return LBR_SEQUENCE_ENOFRAMES;
     }
 
     // allocate a single block of sum_count size
@@ -94,7 +96,7 @@ int sequence_merge_frame_data(struct sequence_t *sequence) {
     struct frame_t *merged_frame_data       = malloc(merged_frame_data_length);
 
     if (merged_frame_data == NULL) {
-        return 1;
+        return LBR_EERRNO;
     }
 
     size_t merged_frame_data_index = 0;
@@ -123,7 +125,7 @@ int sequence_merge_frame_data(struct sequence_t *sequence) {
         printf("allocated %zu frames (%zu bytes)\n", sum_count, merged_frame_data_length);
     } else {
         fprintf(stderr, "final writer index %zu does not match sum %zu\n", merged_frame_data_index, sum_count);
-        return 1;
+        return LBR_SEQUENCE_EWRITEINDEX;
     }
 
     return 0;
