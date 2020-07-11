@@ -1,4 +1,0 @@
-freealut
-liblightorama
-libserialport
-libxml2
