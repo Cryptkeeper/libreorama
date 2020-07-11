@@ -25,6 +25,8 @@
 
 #include "lbrerr.h"
 
+#define INTERVAL_NS_IN_S 1000000000
+
 static void timespec_sub(struct timespec a,
                          struct timespec b,
                          struct timespec *out) {
@@ -40,12 +42,8 @@ static void timespec_add(struct timespec a,
 
     // nanosleep will return EINVAL for tv_nsec values >=1000 million (1 second)
     // modulus tv_nsec to avoid overflowing its value into seconds
-    static const long NSEC_IN_SEC = 1000000000;
-
-    if (out->tv_nsec >= NSEC_IN_SEC) {
-        out->tv_sec += out->tv_nsec / NSEC_IN_SEC;
-        out->tv_nsec %= NSEC_IN_SEC;
-    }
+    out->tv_sec += out->tv_nsec / INTERVAL_NS_IN_S;
+    out->tv_nsec %= INTERVAL_NS_IN_S;
 }
 
 static const struct interval_t INTERVAL_EMPTY;
