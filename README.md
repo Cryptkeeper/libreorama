@@ -27,7 +27,7 @@ libreorama has been tested with the following hardware:
 | 1x `CTB16PCg3` | 1.09 | 16 |
 | 3x `CTB16PCg3` | 1.11 | 16 |
 
-It uses my reverse engineered documentation of the [Light-O-Rama protocol](https://github.com/Cryptkeeper/lightorama-protocol). As such, not all hardware (especially [RGB devices](http://store.lightorama.com/rgbdevices.html)) is _likely_ compatible.
+The hardware communication layer is based off my reverse engineered documentation of the [Light-O-Rama protocol](https://github.com/Cryptkeeper/lightorama-protocol). As such, you should consider not all hardware (especially [RGB devices](http://store.lightorama.com/rgbdevices.html)) compatible.
 
 libreorama currently supports the following Light-O-Rama sequencing effects:
 
@@ -40,7 +40,7 @@ libreorama currently supports the following Light-O-Rama sequencing effects:
 * Channel Masking and unit broadcasts (protocol behavior)
 ```
 
-For Light-O-Rama networks focused on AC lighting control, libreorama is likely to work out of the box.
+For Light-O-Rama networks focused on AC lighting control, libreorama is likely to work out of the box. You mileage _will_ vary. libreorama is provided for free and is unsupported :)
 
 Feedback and compatibility testing by the community is welcomed. 
 
@@ -48,7 +48,7 @@ Feedback and compatibility testing by the community is welcomed.
 * My reverse engineered [Light-O-Rama network protocol documentation](https://github.com/Cryptkeeper/lightorama-protocol/) is available to familiarize yourself with the internals of Light-O-Rama hardware and software.
 
 ## Compiling
-libreorama uses CMake for compiling and has the following dependencies. You'll need to install these before compiling libreorama.
+libreorama uses CMake for compiling and requires these dependencies. Please research how to obtain these (if needed) for your respective OS as I have only tested them on macOS. You may need to adjust header search & include paths.
 
 * [liblightorama](https://github.com/Cryptkeeper/liblightorama)
 * [libserialport](https://sigrok.org/wiki/Libserialport)
@@ -63,12 +63,10 @@ Once installed, compile libreorama:
 3. `cmake .`
 4. `make`
 
-This will compile a `libreorama` binary, ready to use. You may optionally use `make install` to install libreorama to your user bin path.
-
-I have only tested `CMakeLists.txt` on macOS. If compiling for other OSes you may need to adjust header search paths or include paths.
+This will compile a `libreorama` binary, ready to use. `make install` is available to install libreorama to your user bin path.
 
 ## Usage
-libreorama is designed as a CLI program that plays a sequence (or list of sequences) when ran. Once completed, the program will exit. Scheduling behavior can be done using libreorama in conjunction with other programs such as [cron](https://en.wikipedia.org/wiki/Cron).
+libreorama is designed as a CLI program that plays a sequence (or list of sequences) when ran. Once playback is complete, it will exit. Scheduling behavior can be done using libreorama in conjunction with other programs such as [cron](https://en.wikipedia.org/wiki/Cron).
 
 ```
 Usage: libreorama [options] <serial port name>
@@ -83,7 +81,7 @@ Options:
 
 Light-O-Rama hardware communicates using serial ports, typically with a single connection point to the host system. Simply provide the serial port/device name to libreorama (and optionally, a custom baud rate).
 
-"Shows" are newline separated text files containing the sequence files to play. libreorama will read each sequentially line and play the corresponding sequence. libreorama will not reload automatically and must be restarted.
+"Shows" are newline separated text files containing the sequence files to play. libreorama will read each sequentially line and play the corresponding sequence. libreorama will not reload modified show files and must be restarted.
 
 ```
 sequences/My First Sequence.lms
@@ -94,9 +92,7 @@ sequences/My Second Sequence.lms
 There is no explicit limit to how many sequences are in a show (besides a minimum of one).
 
 ### Frame Buffer
-libreorama interprets the Light-O-Rama sequence file in frames. Each frame is simplified if possible, and converted into the network protocol equivalent to be written to the serial port. As it is converted, it is stored in the "frame buffer".
-
-For complex sequences, there may be a lot of network traffic and subsequently a larger frame buffer is necessary. libreorama will automatically expand (and shrink) the frame buffer to fit demand. When it expands the frame buffer, it will print a warning.
+libreorama interprets the Light-O-Rama sequence file in frames. Each frame is simplified if possible, and encoded into the network protocol equivalent to be written to the serial port. As it is encoded, it is stored in the "frame buffer". For complex sequences, there may be a lot of network traffic and subsequently a larger frame buffer is necessary. libreorama will automatically expand (and shrink) the frame buffer to fit demand. When it expands the frame buffer, it will print a warning.
 
 `reallocated frame buffer to 128 bytes (increase pre-allocation?)`
 
