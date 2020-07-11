@@ -25,13 +25,13 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
 #include "audio.h"
 #include "err.h"
 #include "lbrerr.h"
 #include "encode.h"
 #include "file.h"
+#include "interval.h"
 
 static int player_load_sequence_file(struct sequence_t *current_sequence,
                                      const char *sequence_file,
@@ -263,8 +263,15 @@ int player_start(struct player_t *player,
     ALint source_state;
 
     // construct a timespec copy of step_time_ms
-    // this is used by the downstream nanosleep calls
+    // this is used by interval_timer as the "normal" interval time
     struct timespec step_time;
+
+    step_time.tv_sec  = current_sequence.step_time_ms / 1000;
+    step_time.tv_nsec = (long) (current_sequence.step_time_ms % 1000) * 1000000;
+
+    struct interval_t interval_timer;
+
+    interval_init(&interval_timer, step_time);
 
     // convert time_correction_ms into its corresponding frame_index_t
     // use this as a starting point to (optionally) shift forward
@@ -279,6 +286,10 @@ int player_start(struct player_t *player,
     }
 
     while (true) {
+        if ((err = interval_wake(&interval_timer))) {
+            return err;
+        }
+
         // write the current frame index into the frame_buf
         // pass an interrupt call back to the parent
         if ((err = encode_sequence_frame(frame_buffer, &current_sequence, frame_index))) {
@@ -307,17 +318,11 @@ int player_start(struct player_t *player,
             break;
         }
 
-        // this is set each loop to handle time offsets
-        // fixme: offset using overage/underage from previous loop
-        unsigned short sleep_time_ms = current_sequence.step_time_ms;
-
-        step_time.tv_sec  = sleep_time_ms / 1000;
-        step_time.tv_nsec = (long) (sleep_time_ms % 1000) * 1000000;
-
         // sleep after each loop iteration
-        // this time comes from #player_load_sequence_file and should be considered dynamic
-        if (nanosleep(&step_time, NULL)) {
-            return LBR_EERRNO;
+        // interval internally manages time spent to ensure
+        //  that each sleep maintains the expected step_time normal
+        if ((err = interval_sleep(&interval_timer))) {
+            return err;
         }
     }
 
