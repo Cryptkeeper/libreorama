@@ -26,9 +26,10 @@
 #include <limits.h>
 #include <getopt.h>
 
-#include "err.h"
-#include "lbrerr.h"
-#include "player.h"
+#include "err/al.h"
+#include "err/sp.h"
+#include "err/lbr.h"
+#include "player/player.h"
 
 static void print_usage(void) {
     printf("Usage: libreorama [options] <serial port name>\n");
@@ -98,7 +99,7 @@ static int handle_frame_interrupt(unsigned short step_time_ms) {
 
         // sp_nonblocking_write returns bytes written when non-error (<0 - SP_OK)
         // feed step_time_ms as timeout to avoid blocking writes from stalling playback
-        if ((sp_return = sp_blocking_write(serial_port, frame_buffer.data, frame_buffer.written_length, step_time_ms / 2)) < SP_OK) {
+        if ((sp_return = sp_blocking_write(serial_port, frame_buffer.data, frame_buffer.written_length, step_time_ms / 2u)) < SP_OK) {
             sp_perror(sp_return, "failed to write frame data to serial port");
             return LBR_ESPERR;
         }

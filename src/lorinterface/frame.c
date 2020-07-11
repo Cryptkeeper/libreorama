@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "lbrerr.h"
+#include "../err/lbr.h"
 
 #define FRAME_BUFFER_LENGTH_GROW_SCALE 2
 

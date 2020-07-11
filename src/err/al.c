@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include "err.h"
+#include "al.h"
 
 #include <stdio.h>
 
@@ -81,34 +81,5 @@ char *al_error_string(ALenum err) {
             return "AL_OUT_OF_MEMORY";
         default:
             return "unknown ALenum error";
-    }
-}
-
-void sp_perror(enum sp_return sp_return,
-               const char *msg) {
-    fprintf(stderr, "libserialport error (version %s)\n", SP_LIB_VERSION_STRING);
-    fprintf(stderr, "%s\n", msg);
-    fprintf(stderr, "%s (%d)\n", sp_error_string(sp_return), sp_return);
-
-    // SP_ERR_FAIL sets optional sp_last_error_message
-    if (sp_return == SP_ERR_FAIL) {
-        char *last_err_msg = sp_last_error_message();
-        fprintf(stderr, "%s\n", last_err_msg);
-        sp_free_error_message(last_err_msg);
-    }
-}
-
-char *sp_error_string(enum sp_return sp_return) {
-    switch (sp_return) {
-        case SP_ERR_ARG:
-            return "SP_ERR_ARG";
-        case SP_ERR_FAIL:
-            return "SP_ERR_FAIL";
-        case SP_ERR_SUPP:
-            return "SP_ERR_SUPP";
-        case SP_ERR_MEM:
-            return "SP_ERR_MEM";
-        default:
-            return "unknown sp_return error";
     }
 }

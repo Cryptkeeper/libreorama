@@ -21,27 +21,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+#ifndef LIBREORAMA_SP_H
+#define LIBREORAMA_SP_H
 
-/**
- * err.h provides a unified method for testing and printing errors for libserialport, ALUT & OpenAL.
- * It mirrors the errno & perror style of error handling with *_get_error & *_perror functions.
- */
-#ifndef LIBREORAMA_ERR_H
-#define LIBREORAMA_ERR_H
-
-#include <AL/alut.h>
 #include <libserialport.h>
-
-ALenum al_get_error();
-
-void al_perror(ALenum err,
-               const char *msg);
-
-char *al_error_string(ALenum err);
 
 void sp_perror(enum sp_return sp_return,
                const char *msg);
 
 char *sp_error_string(enum sp_return sp_return);
 
-#endif //LIBREORAMA_ERR_H
+#endif //LIBREORAMA_SP_H

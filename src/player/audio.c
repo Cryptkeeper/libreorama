@@ -28,7 +28,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "lbrerr.h"
+#include "../err/lbr.h"
 
 int audio_find_sequence_file(const char *sequence_file,
                              const char *audio_file_hint,

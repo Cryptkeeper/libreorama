@@ -27,7 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lbrerr.h"
+#include "../err/lbr.h"
 #include "seqtypes/lormedia.h"
 
 void sequence_free(struct sequence_t *sequence) {

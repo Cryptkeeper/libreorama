@@ -26,7 +26,7 @@
 #include <lightorama/io.h>
 #include <lightorama/brightness_curve.h>
 
-#include "lbrerr.h"
+#include "../err/lbr.h"
 
 // assumes no individual lor_write_* call will use more than 16 bytes
 // see https://github.com/Cryptkeeper/liblightorama#memory-allocations

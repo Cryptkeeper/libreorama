@@ -26,8 +26,8 @@
 
 #include <lightorama/protocol.h>
 
-#include "channel.h"
-#include "frame.h"
+#include "../lorinterface/channel.h"
+#include "../lorinterface/frame.h"
 
 struct sequence_t {
     unsigned short   step_time_ms;

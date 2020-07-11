@@ -21,41 +21,35 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef LIBREORAMA_PLAYER_H
-#define LIBREORAMA_PLAYER_H
+#include "sp.h"
 
-#include <stdbool.h>
 #include <stdio.h>
 
-#include <AL/alut.h>
+void sp_perror(enum sp_return sp_return,
+               const char *msg) {
+    fprintf(stderr, "libserialport error (version %s)\n", SP_LIB_VERSION_STRING);
+    fprintf(stderr, "%s\n", msg);
+    fprintf(stderr, "%s (%d)\n", sp_error_string(sp_return), sp_return);
 
-#include "sequence.h"
-#include "frame.h"
+    // SP_ERR_FAIL sets optional sp_last_error_message
+    if (sp_return == SP_ERR_FAIL) {
+        char *last_err_msg = sp_last_error_message();
+        fprintf(stderr, "%s\n", last_err_msg);
+        sp_free_error_message(last_err_msg);
+    }
+}
 
-struct player_t {
-    char   **sequence_files;
-    size_t sequence_files_cnt;
-    size_t sequence_files_cur;
-    ALuint al_source;
-    ALuint current_al_buffer;
-    bool is_infinite_loop: 1;
-    bool has_al_source: 1;
-    bool has_al_buffer: 1;
-};
-
-typedef int (*player_frame_interrupt_t)(unsigned short step_time_ms);
-
-int player_init(struct player_t *player,
-                bool is_infinite_loop,
-                const char *show_file_path);
-
-bool player_has_next(struct player_t *player);
-
-int player_start(struct player_t *player,
-                 player_frame_interrupt_t frame_interrupt,
-                 struct frame_buffer_t *frame_buffer,
-                 unsigned short time_correction_ms);
-
-void player_free(const struct player_t *player);
-
-#endif //LIBREORAMA_PLAYER_H
+char *sp_error_string(enum sp_return sp_return) {
+    switch (sp_return) {
+        case SP_ERR_ARG:
+            return "SP_ERR_ARG";
+        case SP_ERR_FAIL:
+            return "SP_ERR_FAIL";
+        case SP_ERR_SUPP:
+            return "SP_ERR_SUPP";
+        case SP_ERR_MEM:
+            return "SP_ERR_MEM";
+        default:
+            return "unknown sp_return error";
+    }
+}

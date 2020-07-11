@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lbrerr.h"
+#include "../err/lbr.h"
 
 #define CHANNEL_FRAME_DATA_COUNT_DEFAULT 512
 #define CHANNEL_FRAME_DATA_COUNT_GROW_SCALE 2

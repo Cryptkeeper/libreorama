@@ -27,7 +27,7 @@
 
 #include <libxml/tree.h>
 
-#include "../lbrerr.h"
+#include "../../err/lbr.h"
 
 #define LORMEDIA_MAX_INTENSITY 100
 

@@ -21,29 +21,21 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef LIBREORAMA_LBRERR_H
-#define LIBREORAMA_LBRERR_H
 
-#define LBR_EERRNO                  1
-#define LBR_EALERR                  2
-#define LBR_ESPERR                  3
+/**
+ * err.h provides a unified method for testing and printing errors for libserialport, ALUT & OpenAL.
+ * It mirrors the errno & perror style of error handling with *_get_error & *_perror functions.
+ */
+#ifndef LIBREORAMA_AL_H
+#define LIBREORAMA_AL_H
 
-#define LBR_SEQUENCE_ENOFRAMES      4
-#define LBR_SEQUENCE_EWRITEINDEX    5
+#include <AL/alut.h>
 
-#define LBR_PLAYER_EUNSUPEXT        6
-#define LBR_PLAYER_EBADEXT          7
-#define LBR_PLAYER_ESHOWEMPTY       8
+ALenum al_get_error();
 
-#define LBR_ENCODE_EBLOBTOOSMALL    9
-#define LBR_ENCODE_EUNSUPACTION     10
+void al_perror(ALenum err,
+               const char *msg);
 
-#define LBR_LOADER_EMALFDATA        11
-#define LBR_LOADER_EUNSUPDATA       12
+char *al_error_string(ALenum err);
 
-void lbr_perror(int err,
-                const char *msg);
-
-char *lbr_error_string(int err);
-
-#endif //LIBREORAMA_LBRERR_H
+#endif //LIBREORAMA_AL_H

@@ -23,7 +23,7 @@
  */
 #include "interval.h"
 
-#include "lbrerr.h"
+#include "err/lbr.h"
 
 #define INTERVAL_NS_IN_S 1000000000
 

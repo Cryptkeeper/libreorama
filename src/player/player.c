@@ -27,11 +27,11 @@
 #include <string.h>
 
 #include "audio.h"
-#include "err.h"
-#include "lbrerr.h"
-#include "encode.h"
-#include "file.h"
-#include "interval.h"
+#include "../err/al.h"
+#include "../err/lbr.h"
+#include "../lorinterface/encode.h"
+#include "../file.h"
+#include "../interval.h"
 
 static int player_load_sequence_file(struct sequence_t *current_sequence,
                                      const char *sequence_file,
