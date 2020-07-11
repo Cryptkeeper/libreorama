@@ -216,19 +216,6 @@ int main(int argc,
 
     frame_buffer = FRAME_BUFFER_EMPTY;
 
-    // initialize the default frame_buffer
-    // this pre-allocates a working block of memory
-    // a zero value (optional) avoids this pre-allocation and instead will
-    //  require frame_buffer to allocate on the fly, increasing CPU but decreasing memory
-    if (initial_frame_buffer_length > 0) {
-        if ((err = frame_buffer_alloc(&frame_buffer, initial_frame_buffer_length))) {
-            lbr_perror(err, "failed to pre-allocate initial frame buffer");
-            return 1;
-        } else {
-            printf("pre-allocated frame buffer of %zu bytes\n", initial_frame_buffer_length);
-        }
-    }
-
     // initialize player and load show file
     // player_init handles error printing internally
     if ((err = player_init(&player, is_infinite_loop, show_file_path))) {
@@ -241,6 +228,23 @@ int main(int argc,
     // #player_next will return true as long as there is a sequence to play
     // false values will break the loop and cleanly terminate the program
     while (player_has_next(&player)) {
+        // free the frame buffer between sequences
+        // this ensures that if expanded by a sequence, that allocation is not maintained
+        frame_buffer_free(&frame_buffer);
+
+        // initialize the default frame_buffer
+        // this pre-allocates a working block of memory
+        // a zero value (optional) avoids this pre-allocation and instead will
+        //  require frame_buffer to allocate on the fly, increasing CPU but decreasing memory
+        if (initial_frame_buffer_length > 0) {
+            if ((err = frame_buffer_alloc(&frame_buffer, initial_frame_buffer_length))) {
+                lbr_perror(err, "failed to pre-allocate initial frame buffer");
+                return 1;
+            } else {
+                printf("pre-allocated frame buffer of %zu bytes\n", initial_frame_buffer_length);
+            }
+        }
+
         // load and buffer the sequence
         // this will internally block for playback
         if ((err = player_start(&player, handle_frame_interrupt, &frame_buffer, time_correction_ms))) {
