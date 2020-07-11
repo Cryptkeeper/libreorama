@@ -120,7 +120,7 @@ int frame_buffer_get_blob(struct frame_buffer_t *frame_buffer,
     return 0;
 }
 
-int frame_buffer_reset(struct frame_buffer_t *frame_buffer) {
+int frame_buffer_reset_writer(struct frame_buffer_t *frame_buffer) {
     // todo: shrink/reset between sequences
 
     // reset the writer index

@@ -61,6 +61,6 @@ int frame_buffer_get_blob(struct frame_buffer_t *frame_buffer,
                           unsigned char **blob,
                           size_t blob_length);
 
-int frame_buffer_reset(struct frame_buffer_t *frame_buffer);
+int frame_buffer_reset_writer(struct frame_buffer_t *frame_buffer);
 
 #endif //LIBREORAMA_FRAME_H

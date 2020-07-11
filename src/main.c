@@ -109,7 +109,7 @@ static int handle_frame_interrupt(unsigned short step_time_ms) {
     // always fire regardless of written_length so that it may sample 0 values
     // this may internally downsize the backing memory block as needed
     int err;
-    if ((err = frame_buffer_reset(&frame_buffer))) {
+    if ((err = frame_buffer_reset_writer(&frame_buffer))) {
         return err;
     }
 
