@@ -121,6 +121,8 @@ int frame_buffer_get_blob(struct frame_buffer_t *frame_buffer,
 }
 
 int frame_buffer_reset(struct frame_buffer_t *frame_buffer) {
+    // todo: shrink/reset between sequences
+
     // reset the writer index
     frame_buffer->written_length = 0;
 
