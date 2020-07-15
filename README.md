@@ -91,20 +91,6 @@ sequences/My Second Sequence.lms
 
 There is no explicit limit to how many sequences are in a show (besides a minimum of one).
 
-### Frame Buffer
-libreorama interprets the Light-O-Rama sequence file in frames. Each frame is simplified if possible, and encoded into the network protocol equivalent to be written to the serial port. As it is encoded, it is stored in the "frame buffer". For complex sequences, there may be a lot of network traffic and subsequently a larger frame buffer is necessary. libreorama will automatically expand (and shrink) the frame buffer to fit demand. When it expands the frame buffer, it will print a warning.
-
-`reallocated frame buffer to 128 bytes (increase pre-allocation?)`
-
-If this frequently happens (and your host environment has memory to spare), consider using the `-p` option to pre-allocate a larger frame buffer. This enables you to use more memory to reduce CPU time.
-
-### Playback Timing
-libreorama will automatically determine a step time (or FPS) for each sequence when loaded. Currently, it will select the highest resolution step time needed to faithfully playback the sequence without difference. 
-
-Between playback steps, libreorama uses `nanosleep` to wait for the next frame. This avoids the CPU usage of spinlocks, but introduces a potential time offset issue (for example, request a sleep of 50 milliseconds but it sleeps for 55). To avoid this, libreorama will automatically offset its playback step time to adjust for over-sleep (see [`src/interval.c`](src/interval.c) for implementation details).
-
-For sequences lagging behind their audio playback, the `-c` option allows you to provide a time correction offset (in milliseconds). This shifts sequence playback forward, effectively delaying audio playback.
-
 ## Performance
 On my hardware, libreorama playing a 16 channel sequence, with audio, has an average of `0.63%` CPU usage and `31.3MB` of RAM usage (with the vast majority being the audio file).
 
@@ -120,6 +106,20 @@ As such, libreorama will comfortably run a complex Light-O-Rama network off a [R
 libreorama uses a runtime minimiser for optimizing the outgoing network protocol as it is encoded during playback. The minimiser ([`src/lorinterface/minify.c`](src/lorinterface/minify.c)) focuses on preventing duplicate frames, using Light-O-Rama protocol's [channel masking functionality](https://github.com/Cryptkeeper/lightorama-protocol/blob/master/PROTOCOL.md#channel-masking) and simplifying bulk resets.
 
 Any sequence that duplicates effects across channels, or commonly controls several channels within a unit at a time, will see a ~30% improvement in network bandwidth usage.
+
+### Frame Buffer
+libreorama interprets the Light-O-Rama sequence file in frames. Each frame is simplified if possible, and encoded into the network protocol equivalent to be written to the serial port. As it is encoded, it is stored in the "frame buffer". For complex sequences, there may be a lot of network traffic and subsequently a larger frame buffer is necessary. libreorama will automatically expand (and shrink) the frame buffer to fit demand. When it expands the frame buffer, it will print a warning.
+
+`reallocated frame buffer to 128 bytes (increase pre-allocation?)`
+
+If this frequently happens (and your host environment has memory to spare), consider using the `-p` option to pre-allocate a larger frame buffer. This enables you to use more memory to reduce CPU time.
+
+### Playback Timing
+libreorama will automatically determine a step time (or FPS) for each sequence when loaded. Currently, it will select the highest resolution step time needed to faithfully playback the sequence without difference. 
+
+Between playback steps, libreorama uses `nanosleep` to wait for the next frame. This avoids the CPU usage of spinlocks, but introduces a potential time offset issue (for example, request a sleep of 50 milliseconds but it sleeps for 55). To avoid this, libreorama will automatically offset its playback step time to adjust for over-sleep (see [`src/interval.c`](src/interval.c) for implementation details).
+
+For sequences lagging behind their audio playback, the `-c` option allows you to provide a time correction offset (in milliseconds). This shifts sequence playback forward, effectively delaying audio playback.
 
 ## License
 See [LICENSE](LICENSE).
