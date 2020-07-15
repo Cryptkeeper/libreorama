@@ -28,8 +28,6 @@
 #include "../err/lbr.h"
 #include "encode.h"
 
-#define MINIFY_MAX_BITMASK_LENGTH 16
-
 static int minify_channel_compare(const void *a,
                                   const void *b) {
     const struct channel_t *channel_a = (struct channel_t *) a;
@@ -110,16 +108,17 @@ static int minify_write_frames_optimized(struct frame_buffer_t *frame_buffer,
     return 0;
 }
 
-static bool minify_channels_fit_bitmask(struct channel_t **channels,
+static bool minify_channels_fit_bitmask(const struct channel_t **channels,
                                         size_t len) {
-    if (len > MINIFY_MAX_BITMASK_LENGTH) {
+    static const size_t max_length = sizeof(lor_channel_t);
+
+    if (len > max_length) {
         return false;
     }
 
     // ensure that each circuit id fits in the bitmask
-    // len > MINIFY_MAX_BITMASK_LENGTH is a basic pre-check to avoid obvious false cases
     for (size_t i = 0; i < len; i++) {
-        if (channels[i]->circuit >= MINIFY_MAX_BITMASK_LENGTH) {
+        if (channels[i]->circuit >= max_length) {
             return false;
         }
     }
@@ -156,7 +155,7 @@ static int minify_unit(struct frame_buffer_t *frame_buffer,
         goto minify_unit_return;
     }
 
-    const bool fits_in_mask = minify_channels_fit_bitmask(channels, len);
+    const bool fits_in_mask = minify_channels_fit_bitmask((const struct channel_t **) channels, len);
 
     if (fits_in_mask) {
         return_code = minify_write_frames_optimized(frame_buffer, unit, channels, len);
@@ -195,6 +194,13 @@ int minify_frame(struct frame_buffer_t *frame_buffer,
                  const struct sequence_t *sequence,
                  frame_index_t frame_index) {
     int return_code = 0;
+
+    // channels_count will never be 0 at this point
+    //  it is checked by player.c prior to playback
+    // this check is included to appease Clang-Tidy warnings
+    if (sequence->channels_count == 0) {
+        return LBR_SEQUENCE_ENOCHANNELS;
+    }
 
     // sort channels by unit+circuit in descending order
     // this allows a iteration loop to easily detect unit "breaks"
