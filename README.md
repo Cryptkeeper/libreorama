@@ -116,5 +116,10 @@ MacBook Pro (15-inch, 2017)
 
 As such, libreorama will comfortably run a complex Light-O-Rama network off a [Raspberry Pi](https://www.raspberrypi.org/).
 
+### Protocol Encoding Optimizations
+libreorama uses a runtime minimiser for optimizing the outgoing network protocol as it is encoded during playback. The minimiser ([`src/lorinterface/minify.c`](src/lorinterface/minify.c)) focuses on preventing duplicate frames, using Light-O-Rama protocol's [channel masking functionality](https://github.com/Cryptkeeper/lightorama-protocol/blob/master/PROTOCOL.md#channel-masking) and simplifying bulk resets.
+
+Any sequence that duplicates effects across channels, or commonly controls several channels within a unit at a time, will see a ~30% improvement in network bandwidth usage.
+
 ## License
 See [LICENSE](LICENSE).

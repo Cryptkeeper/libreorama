@@ -49,6 +49,8 @@ char *lbr_error_string(int err) {
 
         case LBR_SEQUENCE_ENOFRAMES:
             return "LBR_SEQUENCE_ENOFRAMES (sequence contains no frames)";
+        case LBR_SEQUENCE_ENOCHANNELS:
+            return "LBR_SEQUENCE_ENOCHANNELS (sequence contains no channels)";
         case LBR_SEQUENCE_EWRITEINDEX:
             return "LBR_SEQUENCE_EWRITEINDEX (writer index mismatch)";
 
@@ -68,6 +70,9 @@ char *lbr_error_string(int err) {
             return "LBR_LOADER_EMALFDATA (malformed data)";
         case LBR_LOADER_EUNSUPDATA:
             return "LBR_LOADER_EUNSUPDATA (unsupported data)";
+
+        case LBR_MINIFY_EUNCONDATA:
+            return "LBR_MINIFY_EUNCONDATA (unconsumed frame data)";
 
         default:
             return "unknown LBR error";

@@ -21,22 +21,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef LIBREORAMA_ENCODE_H
-#define LIBREORAMA_ENCODE_H
+#ifndef LIBREORAMA_MINIFY_H
+#define LIBREORAMA_MINIFY_H
 
-#include "../err/al.h"
+#include "frame.h"
 #include "../player/sequence.h"
 
-int encode_frame(struct frame_buffer_t *frame_buffer,
-                 lor_unit_t unit,
-                 LORChannelType channel_type,
-                 lor_channel_t channel,
-                 struct frame_t frame);
+int minify_frame(struct frame_buffer_t *frame_buffer,
+                 const struct sequence_t *sequence,
+                 frame_index_t frame_index);
 
-int encode_heartbeat_frame(struct frame_buffer_t *frame_buffer,
-                           frame_index_t frame_index,
-                           unsigned short step_time_ms);
-
-int encode_reset_frame(struct frame_buffer_t *frame_buffer);
-
-#endif //LIBREORAMA_ENCODE_H
+#endif //LIBREORAMA_MINIFY_H

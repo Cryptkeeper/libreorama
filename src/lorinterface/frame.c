@@ -30,20 +30,31 @@
 
 #define FRAME_BUFFER_LENGTH_GROW_SCALE 2
 
-bool frame_equals(struct frame_t a,
-                  struct frame_t b) {
-    if (a.action != b.action) {
+bool frame_equals(const struct frame_t *a,
+                  const struct frame_t *b,
+                  enum frame_equals_mode_t equals_mode) {
+    if (a == NULL && b == NULL) {
+        return true;
+    } else if ((a == NULL) != (b == NULL)) {
         return false;
     }
 
-    switch (a.action) {
+    if (a->action != b->action) {
+        return false;
+    }
+
+    switch (a->action) {
         case LOR_ACTION_CHANNEL_SET_BRIGHTNESS:
-            return a.set_brightness == b.set_brightness;
+            return a->set_brightness == b->set_brightness;
 
         case LOR_ACTION_CHANNEL_FADE:
-            // fade actions are stateful internally to the hardware
-            // they cannot be equal and shouldn't be
-            return false;
+            if (equals_mode == EQUALS_MODE_STRICT) {
+                // fade actions are stateful internally to the hardware
+                // they cannot be equal and shouldn't be
+                return false;
+            } else if (equals_mode == EQUALS_MODE_VALUE) {
+                return a->fade.duration == b->fade.duration && a->fade.to == b->fade.to && a->fade.from == b->fade.from;
+            }
 
         case LOR_ACTION_CHANNEL_ON:
         case LOR_ACTION_CHANNEL_TWINKLE:
@@ -51,7 +62,7 @@ bool frame_equals(struct frame_t a,
             return true;
 
         default:
-            fprintf(stderr, "unable to compare frame equality: %d", a.action);
+            fprintf(stderr, "unable to compare frame equality: %d", a->action);
             return false;
     }
 }
@@ -121,8 +132,6 @@ int frame_buffer_get_blob(struct frame_buffer_t *frame_buffer,
 }
 
 int frame_buffer_reset_writer(struct frame_buffer_t *frame_buffer) {
-    // todo: shrink/reset between sequences
-
     // reset the writer index
     frame_buffer->written_length = 0;
 

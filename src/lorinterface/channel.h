@@ -39,6 +39,7 @@ struct channel_t {
     frame_index_t  first_frame_offset;
     bool has_first_frame_offset;
     struct frame_t *last_sent_frame;
+    struct frame_t *next_frame;
 };
 
 static const struct channel_t CHANNEL_EMPTY;

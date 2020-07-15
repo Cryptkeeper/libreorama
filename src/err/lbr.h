@@ -29,17 +29,20 @@
 #define LBR_ESPERR                  3
 
 #define LBR_SEQUENCE_ENOFRAMES      4
-#define LBR_SEQUENCE_EWRITEINDEX    5
+#define LBR_SEQUENCE_ENOCHANNELS    5
+#define LBR_SEQUENCE_EWRITEINDEX    6
 
-#define LBR_PLAYER_EUNSUPEXT        6
-#define LBR_PLAYER_EBADEXT          7
-#define LBR_PLAYER_ESHOWEMPTY       8
+#define LBR_PLAYER_EUNSUPEXT        7
+#define LBR_PLAYER_EBADEXT          8
+#define LBR_PLAYER_ESHOWEMPTY       9
 
-#define LBR_ENCODE_EBLOBTOOSMALL    9
-#define LBR_ENCODE_EUNSUPACTION     10
+#define LBR_ENCODE_EBLOBTOOSMALL    10
+#define LBR_ENCODE_EUNSUPACTION     11
 
-#define LBR_LOADER_EMALFDATA        11
-#define LBR_LOADER_EUNSUPDATA       12
+#define LBR_LOADER_EMALFDATA        12
+#define LBR_LOADER_EUNSUPDATA       13
+
+#define LBR_MINIFY_EUNCONDATA       14
 
 void lbr_perror(int err,
                 const char *msg);

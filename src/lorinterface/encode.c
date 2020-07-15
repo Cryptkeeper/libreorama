@@ -36,79 +36,66 @@ static lor_brightness_t encode_brightness(unsigned char brightness) {
     return lor_brightness_curve_squared((float) brightness / 255.0f);
 }
 
-static int encode_frame(unsigned char *blob,
-                        struct channel_t *channel,
-                        struct frame_t frame,
-                        size_t *written) {
+int encode_frame(struct frame_buffer_t *frame_buffer,
+                 lor_unit_t unit,
+                 LORChannelType channel_type,
+                 lor_channel_t channel,
+                 struct frame_t frame) {
+    unsigned char *blob = NULL;
+
+    int err;
+    if ((err = frame_buffer_get_blob(frame_buffer, &blob, ENCODE_MAXIMUM_BLOB_LENGTH))) {
+        return err;
+    }
+
+    size_t written;
+
     switch (frame.action) {
         case LOR_ACTION_CHANNEL_SET_BRIGHTNESS:
-            *written = lor_write_channel_set_brightness(channel->unit, LOR_CHANNEL_ID, channel->circuit, encode_brightness(frame.fade.to), blob);
-            return 0;
+            written = lor_write_channel_set_brightness(unit, channel_type, channel, encode_brightness(frame.fade.to), blob);
+            break;
 
         case LOR_ACTION_CHANNEL_FADE:
-            *written = lor_write_channel_fade(channel->unit, LOR_CHANNEL_ID, channel->circuit, encode_brightness(frame.fade.from), encode_brightness(frame.fade.to), frame.fade.duration, blob);
-            return 0;
+            written = lor_write_channel_fade(unit, channel_type, channel, encode_brightness(frame.fade.from), encode_brightness(frame.fade.to), frame.fade.duration, blob);
+            break;
 
         case LOR_ACTION_CHANNEL_ON:
         case LOR_ACTION_CHANNEL_SHIMMER:
         case LOR_ACTION_CHANNEL_TWINKLE:
-            *written = lor_write_channel_action(channel->unit, LOR_CHANNEL_ID, channel->circuit, frame.action, blob);
-            return 0;
+            written = lor_write_channel_action(unit, channel_type, channel, frame.action, blob);
+            break;
 
         default:
             return LBR_ENCODE_EUNSUPACTION;
     }
+
+    if (written > ENCODE_MAXIMUM_BLOB_LENGTH) {
+        return LBR_ENCODE_EBLOBTOOSMALL;
+    }
+
+    frame_buffer->written_length += written;
+
+    return 0;
 }
 
-int encode_sequence_frame(struct frame_buffer_t *frame_buffer,
-                          const struct sequence_t *sequence,
-                          frame_index_t frame_index) {
+int encode_heartbeat_frame(struct frame_buffer_t *frame_buffer,
+                           frame_index_t frame_index,
+                           unsigned short step_time_ms) {
     unsigned char *blob = NULL;
+
+    int err;
+    if ((err = frame_buffer_get_blob(frame_buffer, &blob, ENCODE_MAXIMUM_BLOB_LENGTH))) {
+        return err;
+    }
 
     // automatically push heartbeat messages into the frame buffer
     // this is timed for every 500ms, based off the frame index
-    if (frame_index % (500 / sequence->step_time_ms) == 0) {
-        int err;
+    if (frame_index % (500 / step_time_ms) == 0) {
         if ((err = frame_buffer_get_blob(frame_buffer, &blob, ENCODE_MAXIMUM_BLOB_LENGTH))) {
             return err;
         }
 
         frame_buffer->written_length += lor_write_heartbeat(blob);
-    }
-
-    for (size_t i = 0; i < sequence->channels_count; i++) {
-        struct channel_t *channel = &sequence->channels[i];
-        struct frame_t   *frame   = channel_get_frame(channel, frame_index);
-
-        if (frame == NULL) {
-            continue;
-        }
-
-        // prevent writing duplicate updates
-        // the LOR protocol is stateful and this causes "reset" glitches
-        if (channel->last_sent_frame != NULL && frame_equals(*channel->last_sent_frame, *frame)) {
-            continue;
-        }
-
-        channel->last_sent_frame = frame;
-
-        int err;
-        if ((err = frame_buffer_get_blob(frame_buffer, &blob, ENCODE_MAXIMUM_BLOB_LENGTH))) {
-            return err;
-        }
-
-        size_t written;
-        if ((err = encode_frame(blob, channel, *frame, &written))) {
-            return err;
-        }
-
-        if (written > ENCODE_MAXIMUM_BLOB_LENGTH) {
-            return LBR_ENCODE_EBLOBTOOSMALL;
-        }
-
-        // move the writer index forward
-        // written may be >=0
-        frame_buffer->written_length += written;
     }
 
     return 0;

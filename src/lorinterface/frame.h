@@ -39,8 +39,14 @@ struct frame_t {
 
 static const struct frame_t FRAME_EMPTY;
 
-bool frame_equals(struct frame_t a,
-                  struct frame_t b);
+enum frame_equals_mode_t {
+    EQUALS_MODE_STRICT,
+    EQUALS_MODE_VALUE
+};
+
+bool frame_equals(const struct frame_t *a,
+                  const struct frame_t *b,
+                  enum frame_equals_mode_t equals_mode);
 
 typedef unsigned short frame_index_t;
 
