@@ -94,7 +94,7 @@ static void handle_exit(void) {
 }
 
 static int handle_frame_interrupt(unsigned short step_time_ms) {
-    if (frame_buffer.written_length > 0) {
+    if (frame_buffer.written_length > 0 && serial_port != NULL) {
         enum sp_return sp_return;
 
         // sp_nonblocking_write returns bytes written when non-error (<0 - SP_OK)
@@ -190,19 +190,19 @@ int main(int argc,
     argc -= optind;
     argv += optind;
 
-    if (argc < 1) {
-        fprintf(stderr, "missing serial port argument\n");
-        return 1;
-    }
-
     atexit(handle_exit);
 
     // initialize the serial port name from argv
     // cleanup of any successfully opened sp_port is handled by #handle_exit
     int err;
-    if ((err = sp_init_port(argv[0], baud_rate))) {
-        lbr_perror(err, "failed to initialize serial port");
-        return 1;
+
+    if (argc > 0) {
+        if ((err = sp_init_port(argv[0], baud_rate))) {
+            lbr_perror(err, "failed to initialize serial port");
+            return 1;
+        }
+    } else {
+        fprintf(stderr, "no serial port specified, defaulting to NULL (no output)\n");
     }
 
     // initialize ALUT
