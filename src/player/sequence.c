@@ -137,8 +137,6 @@ char *sequence_type_string(enum sequence_type_t sequence_type) {
             return "Light-O-Rama Legacy Media Sequence (lms)";
         case SEQUENCE_TYPE_LOR_EDIT:
             return "Light-O-Rama S5 Media Sequence (loredit)";
-        case SEQUENCE_TYPE_FALCON:
-            return "Falcon Sequence (fseq)";
         case SEQUENCE_TYPE_UNKNOWN:
         default:
             return "unknown";
@@ -150,8 +148,6 @@ enum sequence_type_t sequence_type_from_file_extension(const char *file_ext) {
         return SEQUENCE_TYPE_LOR_MEDIA;
     } else if (strncmp(file_ext, ".loredit", 8) == 0) {
         return SEQUENCE_TYPE_LOR_EDIT;
-    } else if (strncmp(file_ext, ".fseq", 5) == 0) {
-        return SEQUENCE_TYPE_FALCON;
     } else {
         return SEQUENCE_TYPE_UNKNOWN;
     }
