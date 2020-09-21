@@ -28,8 +28,8 @@
 #include <string.h>
 
 #include "../err/lbr.h"
-#include "seqtypes/lormedia.h"
-#include "seqtypes/loredit.h"
+#include "../seqtypes/lormedia.h"
+#include "../seqtypes/loredit.h"
 
 void sequence_free(struct sequence_t *sequence) {
     if (sequence->merged_frame_data != NULL) {

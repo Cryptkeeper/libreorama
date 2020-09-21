@@ -26,7 +26,7 @@
 
 #include <libxml/tree.h>
 
-#include "../../lorinterface/frame.h"
+#include "../lorinterface/frame.h"
 
 unsigned char loreffect_brightness(unsigned char effect_intensity);
 

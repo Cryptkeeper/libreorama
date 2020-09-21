@@ -24,7 +24,7 @@
 #ifndef LIBREORAMA_LORMEDIA_H
 #define LIBREORAMA_LORMEDIA_H
 
-#include "../sequence.h"
+#include "../player/sequence.h"
 
 int lormedia_sequence_load(const char *sequence_file,
                            char **audio_file_hint,

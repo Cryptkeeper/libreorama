@@ -25,7 +25,7 @@
 
 #include <string.h>
 
-#include "../../err/lbr.h"
+#include "../err/lbr.h"
 
 xmlNode *xml_find_node_next(const xmlNode *root,
                             const char *name) {

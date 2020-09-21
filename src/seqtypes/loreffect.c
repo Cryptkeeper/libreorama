@@ -24,7 +24,7 @@
 #include "loreffect.h"
 
 #include "lorparse.h"
-#include "../../err/lbr.h"
+#include "../err/lbr.h"
 
 #define LOREFFECT_MAX_INTENSITY 100
 

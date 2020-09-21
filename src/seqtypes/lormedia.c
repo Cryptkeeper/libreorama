@@ -25,7 +25,7 @@
 
 #include "loreffect.h"
 #include "lorparse.h"
-#include "../../err/lbr.h"
+#include "../err/lbr.h"
 
 int lormedia_sequence_load(const char *sequence_file,
                            char **audio_file_hint,
