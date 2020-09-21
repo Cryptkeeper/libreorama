@@ -48,6 +48,7 @@ int sequence_merge_frame_data(struct sequence_t *sequence);
 
 enum sequence_type_t {
     SEQUENCE_TYPE_LOR_MEDIA,
+    SEQUENCE_TYPE_LOR_EDIT,
     SEQUENCE_TYPE_FALCON,
     SEQUENCE_TYPE_UNKNOWN,
 };
