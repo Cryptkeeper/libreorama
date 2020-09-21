@@ -121,6 +121,11 @@ static long xml_get_propertyl(const xmlNode *node,
     return l;
 }
 
+static int xml_is_named_node(const xmlNode *node,
+                             const char *key) {
+    return node->type == XML_ELEMENT_NODE && xmlStrEqual(node->name, (const xmlChar *) key);
+}
+
 static unsigned char lormedia_effect_brightness(unsigned char effect_intensity) {
     // LMS files use 0-100 for brightness scales
     // normalize the value and scale it against 255 (full byte)
@@ -246,7 +251,7 @@ int lormedia_sequence_load(const char *sequence_file,
     xmlNode *channel_node = channels_element->children;
 
     while (channel_node != NULL) {
-        if (channel_node->type == XML_ELEMENT_NODE) {
+        if (xml_is_named_node(channel_node, "channel")) {
             // append the channel_node to the sequence channels
             // offset channel by 1 since circuit is index 1 based
             const lor_unit_t    unit    = (lor_unit_t) xml_get_propertyl(channel_node, "unit");
@@ -265,7 +270,7 @@ int lormedia_sequence_load(const char *sequence_file,
             xmlNode *effect_node = channel_node->children;
 
             while (effect_node != NULL) {
-                if (effect_node->type == XML_ELEMENT_NODE) {
+                if (xml_is_named_node(effect_node, "effect")) {
                     const unsigned long start_cs = (unsigned long) xml_get_propertyl(effect_node, "startCentisecond");
                     const unsigned long end_cs   = (unsigned long) xml_get_propertyl(effect_node, "endCentisecond");
 
@@ -310,7 +315,7 @@ int lormedia_sequence_load(const char *sequence_file,
     unsigned long highest_total_cs = 0;
 
     while (track_node != NULL) {
-        if (track_node->type == XML_ELEMENT_NODE) {
+        if (xml_is_named_node(track_node, "track")) {
             const unsigned long total_cs = (unsigned long) xml_get_propertyl(track_node, "totalCentiseconds");
 
             if (total_cs > highest_total_cs) {
