@@ -77,6 +77,12 @@ int interval_sleep(struct interval_t *interval) {
     timespec_sub(interval->sleep_duration_goal, interval->sleep_duration_spent, &interval->sleep_duration);
     timespec_add(interval->sleep_duration, interval->sleep_duration_normal, &interval->sleep_duration);
 
+    // ensure nsec value is at least 0
+    // otherwise #nanosleep will return EINVAL
+    if (interval->sleep_duration.tv_nsec < 0) {
+        interval->sleep_duration.tv_nsec = 0;
+    }
+
     interval->sleep_duration_goal = interval->sleep_duration;
 
     if (nanosleep(&interval->sleep_duration, NULL)) {
