@@ -27,11 +27,16 @@
 
 #define INTERVAL_NS_IN_S 1000000000
 
-static void timespec_sub(struct timespec a,
-                         struct timespec b,
+static void timespec_sub(struct timespec start,
+                         struct timespec stop,
                          struct timespec *out) {
-    out->tv_sec  = a.tv_sec - b.tv_sec;
-    out->tv_nsec = a.tv_nsec - b.tv_nsec;
+    if (start.tv_nsec > stop.tv_nsec) {
+        out->tv_sec  = stop.tv_sec - start.tv_sec - 1;
+        out->tv_nsec = stop.tv_nsec - start.tv_nsec + INTERVAL_NS_IN_S;
+    } else {
+        out->tv_sec  = stop.tv_sec - start.tv_sec;
+        out->tv_nsec = stop.tv_nsec - start.tv_nsec;
+    }
 }
 
 static void timespec_add(struct timespec a,
@@ -61,7 +66,7 @@ int interval_wake(struct interval_t *interval) {
     }
 
     if (interval->has_slept) {
-        timespec_sub(interval->wake_time, interval->sleep_time, &interval->sleep_duration_spent);
+        timespec_sub(interval->sleep_time, interval->wake_time, &interval->sleep_duration_spent);
     } else {
         interval->has_slept = 1;
     }
@@ -74,14 +79,8 @@ int interval_sleep(struct interval_t *interval) {
         return LBR_EERRNO;
     }
 
-    timespec_sub(interval->sleep_duration_goal, interval->sleep_duration_spent, &interval->sleep_duration);
+    timespec_sub(interval->sleep_duration_spent, interval->sleep_duration_goal, &interval->sleep_duration);
     timespec_add(interval->sleep_duration, interval->sleep_duration_normal, &interval->sleep_duration);
-
-    // ensure nsec value is at least 0
-    // otherwise #nanosleep will return EINVAL
-    if (interval->sleep_duration.tv_nsec < 0) {
-        interval->sleep_duration.tv_nsec = 0;
-    }
 
     interval->sleep_duration_goal = interval->sleep_duration;
 
