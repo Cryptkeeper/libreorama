@@ -36,9 +36,9 @@ unsigned char loreffect_brightness(unsigned char effect_intensity) {
 }
 
 int loreffect_get_frame(const xmlNode *effect_node,
-                       struct frame_t *frame,
-                       unsigned long start_cs,
-                       unsigned long end_cs) {
+                        struct frame_t *frame,
+                        unsigned long start_cs,
+                        unsigned long end_cs) {
     xmlChar *effect_type = xmlGetProp(effect_node, (const xmlChar *) "type");
 
     if (effect_type == NULL) {

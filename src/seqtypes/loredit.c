@@ -62,7 +62,7 @@ int loredit_sequence_load(const char *sequence_file,
     xmlNode *prop_node = sequence_props_element->children;
 
     int circuit = 1;
-    int unit = 1;
+    int unit    = 1;
 
     while (prop_node != NULL) {
         if (xml_is_named_node(prop_node, "SeqProp")) {
