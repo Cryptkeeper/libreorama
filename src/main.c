@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <getopt.h>
+#include <string.h>
 
 #include "err/al.h"
 #include "err/sp.h"
@@ -39,7 +40,7 @@ static void print_usage(void) {
     printf("\t-f <show file path> (defaults to \"show.txt\")\n");
     printf("\t-p <pre-allocated frame buffer length> (defaults to 0 bytes)\n");
     printf("\t-c <time correction offset in milliseconds> (defaults to 0)\n");
-    printf("\t-l loop show infinitely (defaults to false)\n");
+    printf("\t-l <show loop count> (defaults to 1, \"i\" to infinitely loop)\n");
 }
 
 static struct sp_port        *serial_port = NULL;
@@ -120,14 +121,14 @@ int main(int argc,
          char **argv) {
     int            baud_rate                   = 19200;
     char           *show_file_path             = "show.txt";
-    bool           is_infinite_loop            = true;
     size_t         initial_frame_buffer_length = 0;
     unsigned short time_correction_ms          = 0;
+    int            show_loop_count             = 1;
 
     // prefix optstring with : to enable missing option case
     // see "man 3 getopt" for more information
     int c;
-    while ((c = getopt(argc, argv, ":hb:f:p:c:l")) != -1) {
+    while ((c = getopt(argc, argv, ":hb:f:p:c:l:")) != -1) {
         switch (c) {
             case 'h':
                 print_usage();
@@ -179,9 +180,23 @@ int main(int argc,
                 time_correction_ms = (unsigned short) time_correction_msl;
                 break;
             }
-            case 'l':
-                is_infinite_loop = true;
+            case 'l': {
+                if (strncmp(optarg, "i", 1) == 0) {
+                    // a -1 show_loop_count value indicates and infinite loop
+                    show_loop_count = -1;
+                } else {
+                    long show_loop_countl = strtol(optarg, NULL, 10);
+
+                    // bounds check before downcasting long to int
+                    // this is mostly used for the <=0 check to prevent negative input
+                    if (show_loop_countl <= 0 || show_loop_countl > INT_MAX) {
+                        fprintf(stderr, "invalid show loop count: %ld\n", show_loop_countl);
+                        return 1;
+                    }
+                    show_loop_count = (int) show_loop_countl;
+                }
                 break;
+            }
         }
     }
 
@@ -218,7 +233,7 @@ int main(int argc,
 
     // initialize player and load show file
     // player_init handles error printing internally
-    if ((err = player_init(&player, is_infinite_loop, show_file_path))) {
+    if ((err = player_init(&player, show_file_path, show_loop_count))) {
         lbr_perror(err, "failed to initialize player");
         return 1;
     }

@@ -163,10 +163,23 @@ static int player_reset_frame_buffer(player_frame_interrupt_t frame_interrupt,
     return 0;
 }
 
+static void player_advance(struct player_t *player) {
+    // increment at last step to avoid skipping 0 index
+    player->sequence_files_cur++;
+
+    // wrap the sequence_files_cur value if the show should loop
+    // this controls #player_has_next logic by keeping sequence_files_cur < sequence_files_cnt
+    // a -1 show_loop_count value indicates and infinite loop
+    if (player->show_loop_count == -1 || (player->show_loop_counter++) <= player->show_loop_count) {
+        player->sequence_files_cur %= player->sequence_files_cnt;
+    }
+}
+
 int player_init(struct player_t *player,
-                bool is_infinite_loop,
-                const char *show_file_path) {
-    player->is_infinite_loop = is_infinite_loop;
+                const char *show_file_path,
+                int show_loop_count) {
+    player->show_loop_count   = show_loop_count;
+    player->show_loop_counter = 0;
 
     // generate the single OpenAL source
     // this is used for all player playback behavior
@@ -210,7 +223,7 @@ int player_init(struct player_t *player,
 }
 
 bool player_has_next(struct player_t *player) {
-    // no need to check is_infinite_loop since sequence_files_cur is always wrapped by #player_start
+    // to apply loop controls, sequence_files_cur is wrapped by #player_advance
     return player->sequence_files_cur < player->sequence_files_cnt;
 }
 
@@ -345,14 +358,7 @@ int player_start(struct player_t *player,
     // this frees any internal allocations and removes dangling pointers
     sequence_free(&current_sequence);
 
-    // increment at last step to avoid skipping 0 index
-    player->sequence_files_cur++;
-
-    // wrap the sequence_files_cur value in infinite loop to avoid
-    // index out of bounds error when referencing sequence_files
-    if (player->is_infinite_loop) {
-        player->sequence_files_cur %= player->sequence_files_cnt;
-    }
+    player_advance(player);
 
     return 0;
 }

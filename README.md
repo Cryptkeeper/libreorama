@@ -76,7 +76,7 @@ Options:
 	-f <show file path> (defaults to "show.txt")
 	-p <pre-allocated frame buffer length> (defaults to 0 bytes)
 	-c <time correction offset in milliseconds> (defaults to 0)
-	-l loop show infinitely (defaults to false)
+	-l <show loop count> (defaults to 1, "i" to infinitely loop)
 ```
 
 Light-O-Rama hardware communicates using serial ports, typically with a single connection point to the host system. Simply provide the serial port/device name to libreorama (and optionally, a custom baud rate).

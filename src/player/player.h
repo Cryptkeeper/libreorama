@@ -33,12 +33,13 @@
 #include "../lorinterface/frame.h"
 
 struct player_t {
-    char   **sequence_files;
-    size_t sequence_files_cnt;
-    size_t sequence_files_cur;
-    ALuint al_source;
-    ALuint current_al_buffer;
-    bool is_infinite_loop: 1;
+    char         **sequence_files;
+    size_t       sequence_files_cnt;
+    size_t       sequence_files_cur;
+    ALuint       al_source;
+    ALuint       current_al_buffer;
+    int          show_loop_count;
+    unsigned int show_loop_counter;
     bool has_al_source: 1;
     bool has_al_buffer: 1;
 };
@@ -46,8 +47,8 @@ struct player_t {
 typedef int (*player_frame_interrupt_t)(unsigned short step_time_ms);
 
 int player_init(struct player_t *player,
-                bool is_infinite_loop,
-                const char *show_file_path);
+                const char *show_file_path,
+                int show_loop_count);
 
 bool player_has_next(struct player_t *player);
 
