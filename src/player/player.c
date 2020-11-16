@@ -170,7 +170,7 @@ static void player_advance(struct player_t *player) {
     // wrap the sequence_files_cur value if the show should loop
     // this controls #player_has_next logic by keeping sequence_files_cur < sequence_files_cnt
     // a -1 show_loop_count value indicates and infinite loop
-    if (player->show_loop_count == -1 || (player->show_loop_counter++) <= player->show_loop_count) {
+    if (player->show_loop_count == -1 || ++(player->show_loop_counter) < player->show_loop_count) {
         player->sequence_files_cur %= player->sequence_files_cnt;
     }
 }
