@@ -50,7 +50,7 @@ char **freadlines(FILE *file,
             cur_line_len--;
         }
 
-        char *buf = malloc(cur_line_len + 1);
+        char *buf = strndup(cur_line, cur_line_len);
 
         if (buf == NULL) {
             // failed to allocate buffer for string
@@ -59,11 +59,6 @@ char **freadlines(FILE *file,
 
             return NULL;
         }
-
-        strncpy(buf, cur_line, cur_line_len);
-
-        // ensure the string is null terminated
-        buf[cur_line_len] = 0;
 
         // realloc lines to ensure capacity for incoming cur_line_null
         char **lines_realloc = realloc(lines, sizeof(char *) * (lines_len + 1));
