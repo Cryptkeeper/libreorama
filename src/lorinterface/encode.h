@@ -32,8 +32,6 @@ extern size_t        encode_buffer_length;
 
 void encode_buffer_free();
 
-int encode_buffer_alloc(size_t initial_length);
-
 int encode_buffer_append(unsigned char *data,
                          size_t len);
 

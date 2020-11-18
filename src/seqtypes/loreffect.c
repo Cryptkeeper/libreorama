@@ -56,16 +56,10 @@ int loreffect_get_frame(const xmlNode *effect_node,
 
             if (intensity == LOREFFECT_MAX_INTENSITY) {
                 // since intensity is 100%, use ON action instead
-                *frame = (struct frame_t) {
-                        .action = LOR_ACTION_CHANNEL_ON,
-                };
+                frame->action = LOR_ACTION_CHANNEL_ON;
             } else {
-                *frame = (struct frame_t) {
-                        .action = LOR_ACTION_CHANNEL_SET_BRIGHTNESS,
-                        {
-                                .set_brightness = LOREFFECT_BRIGHTNESS(intensity)
-                        }
-                };
+                frame->action         = LOR_ACTION_CHANNEL_SET_BRIGHTNESS;
+                frame->set_brightness = LOREFFECT_BRIGHTNESS(intensity);
             }
 
             return_code = 0;
@@ -76,15 +70,11 @@ int loreffect_get_frame(const xmlNode *effect_node,
             const unsigned char start_intensity = (unsigned char) xml_get_propertyl(effect_node, "startIntensity");
             const unsigned char end_intensity   = (unsigned char) xml_get_propertyl(effect_node, "endIntensity");
 
-            *frame = (struct frame_t) {
-                    .action = LOR_ACTION_CHANNEL_FADE,
-                    {
-                            .fade = {
-                                    .from = LOREFFECT_BRIGHTNESS(start_intensity),
-                                    .to = LOREFFECT_BRIGHTNESS(end_intensity),
-                                    .duration = lor_duration_of((float) (end_cs - start_cs) / 100.0f),
-                            }
-                    }
+            frame->action = LOR_ACTION_CHANNEL_FADE;
+            frame->fade   = (struct frame_effect_fade_t) {
+                    .from = LOREFFECT_BRIGHTNESS(start_intensity),
+                    .to = LOREFFECT_BRIGHTNESS(end_intensity),
+                    .duration = lor_duration_of((float) (end_cs - start_cs) / 100.0f),
             };
 
             return_code = 0;
@@ -93,18 +83,14 @@ int loreffect_get_frame(const xmlNode *effect_node,
     }
 
     if (xmlStrcasecmp(effect_type, (const xmlChar *) "shimmer") == 0) {
-        *frame = (struct frame_t) {
-                .action = LOR_ACTION_CHANNEL_SHIMMER
-        };
+        frame->action = LOR_ACTION_CHANNEL_SHIMMER;
 
         return_code = 0;
         goto loreffect_get_frame_return;
     }
 
     if (xmlStrcasecmp(effect_type, (const xmlChar *) "twinkle") == 0) {
-        *frame = (struct frame_t) {
-                .action = LOR_ACTION_CHANNEL_TWINKLE
-        };
+        frame->action = LOR_ACTION_CHANNEL_TWINKLE;
 
         return_code = 0;
         goto loreffect_get_frame_return;

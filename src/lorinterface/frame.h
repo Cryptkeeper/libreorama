@@ -37,8 +37,11 @@ struct frame_t {
     };
 } __attribute__((packed));
 
-bool frame_is_init(struct frame_t frame);
-
 typedef unsigned short frame_index_t;
+
+int frame_buffer_request(frame_index_t count,
+                         struct frame_t **frames);
+
+void frame_buffer_free();
 
 #endif //LIBREORAMA_FRAME_H

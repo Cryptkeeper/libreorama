@@ -53,6 +53,42 @@ int lormedia_sequence_load(const char *sequence_file,
         return err;
     }
 
+    // prior to computing any timing sensitive values
+    //  iterate through all channels and their effects to calculate the lowest necessary step_time_ms
+    //  this will be used to determine the full frame_count to be allocated for channels
+    // find the <channels> element and iterate over each children's children
+    // use the startCentisecond & endCentisecond properties to understand each effects time length
+    // select the lowest value to be used for the step_time
+    // this ensures the program automatically runs at the precision needed
+    const xmlNode *channels_element = xml_find_node_child(sequence_element, "channels");
+    xmlNode       *channel_node     = channels_element->children;
+
+    while (channel_node != NULL) {
+        if (xml_is_named_node(channel_node, "channel")) {
+            // iterate over each child node in channels_child
+            // these are the actual effects entries containing time data
+            xmlNode *effect_node = channel_node->children;
+
+            while (effect_node != NULL) {
+                if (xml_is_named_node(effect_node, "effect")) {
+                    const unsigned long start_cs = (unsigned long) xml_get_propertyl(effect_node, "startCentisecond");
+                    const unsigned long end_cs   = (unsigned long) xml_get_propertyl(effect_node, "endCentisecond");
+
+                    // test if the difference, in milliseconds, is below the smallest step time threshold
+                    const unsigned short current_step_time_ms = (unsigned short) ((end_cs - start_cs) * 10);
+
+                    if (current_step_time_ms > 0 && current_step_time_ms < sequence->step_time_ms) {
+                        sequence->step_time_ms = current_step_time_ms;
+                    }
+                }
+
+                effect_node = effect_node->next;
+            }
+        }
+
+        channel_node = channel_node->next;
+    }
+
     // read the <tracks> element
     // each child will contain a "totalCentiseconds" property
     // locate the highest value to be used as a "total sequence duration" value
@@ -77,13 +113,8 @@ int lormedia_sequence_load(const char *sequence_file,
     // this used the previously determined step_time as a frame interval time
     sequence->frame_count = (frame_index_t) ((highest_total_cs * 10) / sequence->step_time_ms);
 
-    // find the <channels> element and iterate over each children's children
-    // use the startCentisecond & endCentisecond properties to understand each effects time length
-    // select the lowest value to be used for the step_time
-    // this ensures the program automatically runs at the precision needed
-    const xmlNode *channels_element = xml_find_node_child(sequence_element, "channels");
-
-    xmlNode *channel_node = channels_element->children;
+    // reset channel_node value since it was previously iterated
+    channel_node = channels_element->children;
 
     while (channel_node != NULL) {
         if (xml_is_named_node(channel_node, "channel")) {
@@ -118,13 +149,6 @@ int lormedia_sequence_load(const char *sequence_file,
                     if ((err = loreffect_get_frame(effect_node, frame, start_cs, end_cs))) {
                         return_code = err;
                         goto lormedia_free;
-                    }
-
-                    // test if the difference, in milliseconds, is below the smallest step time threshold
-                    const unsigned short current_step_time_ms = (unsigned short) ((end_cs - start_cs) * 10);
-
-                    if (current_step_time_ms > 0 && current_step_time_ms < sequence->step_time_ms) {
-                        sequence->step_time_ms = current_step_time_ms;
                     }
                 }
 

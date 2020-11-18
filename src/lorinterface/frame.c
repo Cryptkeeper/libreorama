@@ -23,9 +23,40 @@
  */
 #include "frame.h"
 
-// do not return empty frames
-// these are simply allocated, but do not contain metadata
-// frames are allocated with calloc, so action is always initialized to 0
-bool frame_is_init(struct frame_t frame) {
-    return frame.action != 0;
+#include <stdlib.h>
+#include <string.h>
+
+#include "../err/lbr.h"
+
+static struct frame_t *frame_buffer = NULL;
+static size_t         frame_buffer_count;
+
+int frame_buffer_request(frame_index_t count,
+                         struct frame_t **frames) {
+    frame_buffer = realloc(frame_buffer, sizeof(struct frame_t) * (frame_buffer_count + count));
+
+    if (frame_buffer == NULL) {
+        return LBR_EERRNO;
+    }
+
+    // initialize the allocated portion of the memory to be returned
+    // this ensures the returned frame pointers are always safe
+    memset(&frame_buffer[frame_buffer_count], 0, sizeof(struct frame_t) * count);
+
+    // checkout a portion of the full buffer
+    *frames = &frame_buffer[frame_buffer_count];
+    frame_buffer_count += count;
+
+    return 0;
+}
+
+void frame_buffer_free() {
+    if (frame_buffer != NULL) {
+        free(frame_buffer);
+
+        // release any dangling pointers and avoid double free
+        frame_buffer = NULL;
+    }
+
+    frame_buffer_count = 0;
 }

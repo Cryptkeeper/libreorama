@@ -37,8 +37,9 @@ static lor_brightness_t encode_brightness(unsigned char brightness) {
 }
 
 #define ENCODE_BUFFER_LENGTH_GROW_SCALE 2
+#define ENCODE_BUFFER_LENGTH_DEFAULT 32
 
-unsigned char *encode_buffer;
+unsigned char *encode_buffer = NULL;
 size_t        encode_buffer_length;
 
 static size_t encode_buffer_max_length;
@@ -54,40 +55,27 @@ void encode_buffer_free() {
     }
 }
 
-int encode_buffer_alloc(size_t initial_length) {
-    encode_buffer            = malloc(initial_length);
-    encode_buffer_length     = 0;
-    encode_buffer_max_length = initial_length;
-
-    if (encode_buffer == NULL) {
-        return LBR_EERRNO;
-    }
-
-    return 0;
-}
-
 int encode_buffer_append(unsigned char *data,
                          size_t len) {
     // if written_length + requested len is over the max_length
     //  then it the encode buffer's underlying allocation must be resized
-    if (encode_buffer_length + len > encode_buffer_max_length) {
-        size_t realloc_max_length = encode_buffer_max_length * ENCODE_BUFFER_LENGTH_GROW_SCALE;
-
-        // max_length may be default value of 0
+    if (encode_buffer == NULL || encode_buffer_length + len >= encode_buffer_max_length) {
         // safely handle initial resizing logic
-        if (realloc_max_length == 0) {
-            realloc_max_length = len;
+        // max_length may be default value of 0
+        if (encode_buffer_max_length == 0) {
+            encode_buffer_max_length = ENCODE_BUFFER_LENGTH_DEFAULT;
+        } else {
+            encode_buffer_max_length *= ENCODE_BUFFER_LENGTH_GROW_SCALE;
         }
 
-        unsigned char *realloc_data = realloc(encode_buffer, realloc_max_length);
+        unsigned char *realloc_data = realloc(encode_buffer, encode_buffer_max_length);
         if (data == NULL) {
             return LBR_EERRNO;
         }
 
-        fprintf(stderr, "reallocated encode buffer to %zu bytes (increase pre-allocation?)\n", realloc_max_length);
+        printf("reallocated encode buffer to %zu bytes\n", encode_buffer_max_length);
 
-        encode_buffer            = realloc_data;
-        encode_buffer_max_length = realloc_max_length;
+        encode_buffer = realloc_data;
     }
 
     // copy the incoming buffer data to the final encode buffer

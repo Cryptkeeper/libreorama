@@ -265,13 +265,7 @@ int minify_frame(const struct sequence_t *sequence,
     }
 
     for (size_t i = 0; i < channel_buffer_index; i++) {
-        struct frame_t *frame = &(channels[i]->frame_data[frame_index]);
-
-        if (frame_is_init(*frame)) {
-            frames[i] = frame;
-        } else {
-            frames[i] = NULL;
-        }
+        frames[i] = channel_get_frame(*channels[i], frame_index);
     }
 
     // iterate over channels

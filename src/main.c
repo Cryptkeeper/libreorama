@@ -39,7 +39,6 @@ static void print_usage(void) {
     printf("Options:\n");
     printf("\t-b <serial port baud rate> (defaults to 19200)\n");
     printf("\t-f <show file path> (defaults to \"show.txt\")\n");
-    printf("\t-p <pre-allocated encode buffer length> (defaults to 0 bytes)\n");
     printf("\t-c <time correction offset in milliseconds> (defaults to 0)\n");
     printf("\t-l <show loop count> (defaults to 1, \"i\" to infinitely loop)\n");
 }
@@ -114,16 +113,15 @@ static int handle_frame_interrupt(unsigned short step_time_ms) {
 
 int main(int argc,
          char **argv) {
-    int            baud_rate                    = 19200;
-    char           *show_file_path              = "show.txt";
-    size_t         initial_encode_buffer_length = 0;
-    unsigned short time_correction_ms           = 0;
-    int            show_loop_count              = 1;
+    int            baud_rate          = 19200;
+    char           *show_file_path    = "show.txt";
+    unsigned short time_correction_ms = 0;
+    int            show_loop_count    = 1;
 
     // prefix optstring with : to enable missing option case
     // see "man 3 getopt" for more information
     int c;
-    while ((c = getopt(argc, argv, ":hb:f:p:c:l:")) != -1) {
+    while ((c = getopt(argc, argv, ":hb:f:c:l:")) != -1) {
         switch (c) {
             case 'h':
                 print_usage();
@@ -149,18 +147,6 @@ int main(int argc,
             }
             case 'f': {
                 show_file_path = optarg;
-                break;
-            }
-            case 'p': {
-                long initial_encode_buffer_lengthl = strtol(optarg, NULL, 10);
-
-                // bounds checking before casting to size_t
-                // this is mostly used for the < 0 check to prevent negative input
-                if (initial_encode_buffer_lengthl < 0 || initial_encode_buffer_lengthl > SIZE_T_MAX) {
-                    fprintf(stderr, "invalid encode buffer length: %ld\n", initial_encode_buffer_lengthl);
-                    return 1;
-                }
-                initial_encode_buffer_length = (size_t) initial_encode_buffer_lengthl;
                 break;
             }
             case 'c': {
@@ -241,19 +227,6 @@ int main(int argc,
         // free the encode buffer between sequences
         // this ensures that if expanded by a sequence, that allocation is not maintained
         encode_buffer_free();
-
-        // initialize the default encode buffer
-        // this pre-allocates a working block of memory
-        // a zero value (optional) avoids this pre-allocation and instead will
-        //  require encode buffer to allocate on the fly, increasing CPU but decreasing memory
-        if (initial_encode_buffer_length > 0) {
-            if ((err = encode_buffer_alloc(initial_encode_buffer_length))) {
-                lbr_perror(err, "failed to pre-allocate initial encode buffer");
-                return 1;
-            } else {
-                printf("pre-allocated encode buffer of %zu bytes\n", initial_encode_buffer_length);
-            }
-        }
 
         // load and buffer the sequence
         // this will internally block for playback

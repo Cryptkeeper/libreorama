@@ -23,10 +23,27 @@
  */
 #include "channel.h"
 
-#include <stdlib.h>
 #include <string.h>
 
 #include "../err/lbr.h"
+
+struct frame_t *channel_get_frame(struct channel_t channel,
+                                  frame_index_t index) {
+    if (index >= channel.frame_count) {
+        return NULL;
+    }
+
+    struct frame_t *frame = &(channel.frame_data[index]);
+
+    // do not return empty frames
+    // these are simply allocated, but do not contain metadata
+    // frames are allocated with calloc, so action is always initialized to 0
+    if (frame->action == 0) {
+        return NULL;
+    } else {
+        return frame;
+    }
+}
 
 struct channel_t channel_buffer[CHANNEL_BUFFER_MAX_COUNT];
 size_t           channel_buffer_index;
@@ -41,17 +58,20 @@ int channel_buffer_request(lor_unit_t unit,
 
     struct channel_t *checkout = &channel_buffer[channel_buffer_index];
 
+    // always initialize channel_t since they can be reused
     memset(checkout, 0, sizeof(struct channel_t));
+
+    // checkout a frame buffer
+    int err;
+    if ((err = frame_buffer_request(frame_count, &(checkout->frame_data)))) {
+        return err;
+    }
 
     // by requiring params, this ensures any downstream
     //  usages are forced to initialize these values
-    checkout->unit       = unit;
-    checkout->circuit    = circuit;
-    checkout->frame_data = calloc(frame_count, sizeof(struct frame_t)); // TODO: optimize this to pull from a central buffer
-
-    if (checkout->frame_data == NULL) {
-        return LBR_EERRNO;
-    }
+    checkout->unit        = unit;
+    checkout->circuit     = circuit;
+    checkout->frame_count = frame_count;
 
     *channel = checkout;
     channel_buffer_index++;
@@ -60,18 +80,6 @@ int channel_buffer_request(lor_unit_t unit,
 }
 
 void channel_buffer_reset() {
-    for (size_t i = 0; i < channel_buffer_index; i++) {
-        struct channel_t *channel = &channel_buffer[i];
-
-        if (channel->frame_data != NULL) {
-            free(channel->frame_data);
-
-            // remove danging pointers to ensure any checked out
-            //  channels are ready for re-use
-            channel->frame_data = NULL;
-        }
-    }
-
     // reset index back to 0 for next checkout request
     channel_buffer_index = 0;
 }

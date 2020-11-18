@@ -66,6 +66,8 @@ static int player_load_sequence_file(struct sequence_t *current_sequence,
 
     if (channel_buffer_index == 0) {
         return LBR_SEQUENCE_ENOCHANNELS;
+    } else if (current_sequence->frame_count == 0) {
+        return LBR_SEQUENCE_ENOFRAMES;
     }
 
     return 0;
@@ -317,6 +319,7 @@ int player_start(struct player_t *player,
     }
 
     channel_buffer_reset();
+    frame_buffer_free();
 
     player_advance(player);
 
