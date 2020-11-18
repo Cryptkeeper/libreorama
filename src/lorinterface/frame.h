@@ -39,8 +39,6 @@ struct frame_t {
 
 bool frame_is_init(struct frame_t frame);
 
-static const struct frame_t FRAME_EMPTY;
-
 typedef unsigned short frame_index_t;
 
 #endif //LIBREORAMA_FRAME_H

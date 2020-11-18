@@ -23,12 +23,6 @@
  */
 #include "frame.h"
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-
-#include "../err/lbr.h"
-
 // do not return empty frames
 // these are simply allocated, but do not contain metadata
 // frames are allocated with calloc, so action is always initialized to 0

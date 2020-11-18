@@ -50,7 +50,4 @@ int channel_buffer_request(lor_unit_t unit,
 
 void channel_buffer_reset();
 
-int channel_init_frame_data(struct channel_t *channel,
-                            frame_index_t count);
-
 #endif //LIBREORAMA_CHANNEL_H

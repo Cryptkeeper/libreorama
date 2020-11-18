@@ -109,9 +109,13 @@ int lormedia_sequence_load(const char *sequence_file,
                     const unsigned long start_cs = (unsigned long) xml_get_propertyl(effect_node, "startCentisecond");
                     const unsigned long end_cs   = (unsigned long) xml_get_propertyl(effect_node, "endCentisecond");
 
-                    struct frame_t frame = FRAME_EMPTY;
+                    // from start/end_cs_prop (start time in centiseconds), scale against step_time_ms
+                    //  to determine the frame_index for this effect_node
+                    // this is because effect_nodes may be out of order, or in variable interval
+                    const frame_index_t frame_index_start = (frame_index_t) ((start_cs * 10) / sequence->step_time_ms);
+                    struct frame_t      *frame            = &(channel->frame_data[frame_index_start]);
 
-                    if ((err = loreffect_get_frame(effect_node, &frame, start_cs, end_cs))) {
+                    if ((err = loreffect_get_frame(effect_node, frame, start_cs, end_cs))) {
                         return_code = err;
                         goto lormedia_free;
                     }
@@ -122,14 +126,6 @@ int lormedia_sequence_load(const char *sequence_file,
                     if (current_step_time_ms > 0 && current_step_time_ms < sequence->step_time_ms) {
                         sequence->step_time_ms = current_step_time_ms;
                     }
-
-                    // from start/end_cs_prop (start time in centiseconds), scale against step_time_ms
-                    //  to determine the frame_index for this effect_node
-                    // this is because effect_nodes may be out of order, or in variable interval
-                    const frame_index_t frame_index_start = (frame_index_t) ((start_cs * 10) / sequence->step_time_ms);
-
-                    // TODO: does this assign work?
-                    channel->frame_data[frame_index_start] = frame;
                 }
 
                 effect_node = effect_node->next;
