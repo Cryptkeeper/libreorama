@@ -61,8 +61,8 @@ char *lbr_error_string(int err) {
         case LBR_PLAYER_ESHOWEMPTY:
             return "LBR_PLAYER_ESHOWEMPTY (show is empty)";
 
-        case LBR_ENCODE_EBLOBTOOSMALL:
-            return "LBR_ENCODE_EBLOBTOOSMALL (overwrote frame buffer blob)";
+        case LBR_ENCODE_EBUFFERTOOSMALL:
+            return "LBR_ENCODE_EBUFFERTOOSMALL (encoding buffer is too small)";
         case LBR_ENCODE_EUNSUPACTION:
             return "LBR_ENCODE_EUNSUPACTION (unsupported action)";
 

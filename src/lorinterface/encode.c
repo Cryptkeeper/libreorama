@@ -63,7 +63,7 @@ int encode_frame(struct frame_buffer_t *frame_buffer,
     }
 
     if (written > ENCODE_MAXIMUM_WRITE_LENGTH) {
-        return LBR_ENCODE_EBLOBTOOSMALL;
+        return LBR_ENCODE_EBUFFERTOOSMALL;
     }
 
     // copy the encode_buffer's temporary data to the full frame buffer
