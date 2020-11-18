@@ -35,6 +35,13 @@
 #include "../interval.h"
 #include "../seqtypes/lormedia.h"
 
+static size_t       sequence_files_cur;
+static ALuint       al_source;
+static ALuint       current_al_buffer;
+static unsigned int show_loop_counter;
+static bool         has_al_source;
+static bool         has_al_buffer;
+
 static int player_load_sequence_file(struct sequence_t *current_sequence,
                                      const char *sequence_file,
                                      char **audio_file_hint) {
@@ -71,18 +78,17 @@ static int player_load_sequence_file(struct sequence_t *current_sequence,
     return 0;
 }
 
-static int player_load_audio_file(struct player_t *player,
-                                  const char *sequence_file,
+static int player_load_audio_file(const char *sequence_file,
                                   char *audio_file_hint) {
     ALenum al_err;
 
     // if an AL buffer is already initialized, unload it first
-    if (player->has_al_buffer) {
-        player->has_al_buffer = false;
+    if (has_al_buffer) {
+        has_al_buffer = false;
 
         // unqueue the buffer from the active source
         // otherwise the delete will fail since it is considered in use
-        alSourceUnqueueBuffers(player->al_source, 1, &player->current_al_buffer);
+        alSourceUnqueueBuffers(al_source, 1, &current_al_buffer);
 
         if ((al_err = al_get_error())) {
             al_perror(al_err, "failed to unqueue previous player buffer from source");
@@ -90,7 +96,7 @@ static int player_load_audio_file(struct player_t *player,
         }
 
         // delete the buffer, freeing the memory
-        alDeleteBuffers(1, &player->current_al_buffer);
+        alDeleteBuffers(1, &current_al_buffer);
 
         if ((al_err = al_get_error())) {
             al_perror(al_err, "failed to delete previous player buffer");
@@ -112,7 +118,7 @@ static int player_load_audio_file(struct player_t *player,
 
     printf("using audio file: %s\n", audio_file_or_fallback);
 
-    player->current_al_buffer = alutCreateBufferFromFile(audio_file_or_fallback);
+    current_al_buffer = alutCreateBufferFromFile(audio_file_or_fallback);
 
     // audio_file_or_fallback is the audio_file pointer or a newly allocated one
     // as such, audio_file should always be freed, but audio_file_or_fallback
@@ -131,11 +137,11 @@ static int player_load_audio_file(struct player_t *player,
 
     // only flag has_al_buffer as true if #al_get_error returns ok
     // otherwise the current_al_buffer value may be invalid but flagged as set
-    player->has_al_buffer = true;
+    has_al_buffer = true;
 
     // assign the OpenAL to the source
     // this enables #player_start to simply play the source to start
-    alSourcei(player->al_source, AL_BUFFER, player->current_al_buffer);
+    alSourcei(al_source, AL_BUFFER, current_al_buffer);
 
     if ((al_err = al_get_error())) {
         al_perror(al_err, "failed to assign OpenAL source buffer");
@@ -160,25 +166,23 @@ static int player_reset_frame_buffer(player_frame_interrupt_t frame_interrupt,
 
 static void player_advance(struct player_t *player) {
     // increment at last step to avoid skipping 0 index
-    player->sequence_files_cur++;
+    sequence_files_cur++;
 
     // wrap the sequence_files_cur value if the show should loop
     // this controls #player_has_next logic by keeping sequence_files_cur < sequence_files_cnt
     // a -1 show_loop_count value indicates and infinite loop
-    if (player->show_loop_count == -1 || ++(player->show_loop_counter) < player->show_loop_count) {
-        player->sequence_files_cur %= player->sequence_files_cnt;
+    if (player->show_loop_count == -1 || ++(show_loop_counter) < player->show_loop_count) {
+        sequence_files_cur %= player->sequence_files_cnt;
     }
 }
 
 int player_init(struct player_t *player,
-                const char *show_file_path,
-                int show_loop_count) {
-    player->show_loop_count   = show_loop_count;
-    player->show_loop_counter = 0;
+                const char *show_file_path) {
+    show_loop_counter = 0;
 
     // generate the single OpenAL source
     // this is used for all player playback behavior
-    alGenSources(1, &player->al_source);
+    alGenSources(1, &al_source);
 
     ALenum err;
     if ((err = al_get_error())) {
@@ -187,7 +191,7 @@ int player_init(struct player_t *player,
     }
 
     // only flag has_al_source as true if initialized without error
-    player->has_al_source = true;
+    has_al_source = true;
 
     // open the show file for reading
     FILE *show_file = fopen(show_file_path, "rb");
@@ -219,14 +223,14 @@ int player_init(struct player_t *player,
 
 bool player_has_next(struct player_t *player) {
     // to apply loop controls, sequence_files_cur is wrapped by #player_advance
-    return player->sequence_files_cur < player->sequence_files_cnt;
+    return sequence_files_cur < player->sequence_files_cnt;
 }
 
 int player_start(struct player_t *player,
                  player_frame_interrupt_t frame_interrupt,
                  struct frame_buffer_t *frame_buffer,
                  unsigned short time_correction_ms) {
-    const char *current_sequence_file = player->sequence_files[player->sequence_files_cur];
+    const char *current_sequence_file = player->sequence_files[sequence_files_cur];
 
     // ready the current_sequence value for loading
     // pass a step_time_ms default value of 50ms (20 FPS)
@@ -254,7 +258,7 @@ int player_start(struct player_t *player,
 
     // attempt to load audio file provided by determined sequence type
     // this will delegate or fallback internally as needed
-    if ((err = player_load_audio_file(player, current_sequence_file, audio_file_hint))) {
+    if ((err = player_load_audio_file(current_sequence_file, audio_file_hint))) {
         return err;
     }
 
@@ -262,7 +266,7 @@ int player_start(struct player_t *player,
 
     // notify OpenAL to start source playback
     // OpenAL will automatically stop playback at EOF
-    alSourcePlay(player->al_source);
+    alSourcePlay(al_source);
 
     ALenum al_err;
     if ((al_err = al_get_error())) {
@@ -320,7 +324,7 @@ int player_start(struct player_t *player,
         // test if playback is still happening
         // this defers to the audio time rather than the sequence
         // this helps ensure a consistent result
-        alGetSourcei(player->al_source, AL_SOURCE_STATE, &source_state);
+        alGetSourcei(al_source, AL_SOURCE_STATE, &source_state);
 
         if ((al_err = al_get_error())) {
             al_perror(al_err, "failed to get player source state");
@@ -365,16 +369,16 @@ void player_free(const struct player_t *player) {
 
     // test the source & buffer fields of player for initialization
     // delete each if set
-    if (player->has_al_buffer) {
-        alDeleteBuffers(1, &player->current_al_buffer);
+    if (has_al_buffer) {
+        alDeleteBuffers(1, &current_al_buffer);
 
         if ((err = al_get_error())) {
             al_perror(err, "failed to delete current OpenAL buffer");
         }
     }
 
-    if (player->has_al_source) {
-        alDeleteSources(1, &player->al_source);
+    if (has_al_source) {
+        alDeleteSources(1, &al_source);
 
         if ((err = al_get_error())) {
             al_perror(err, "failed to delete OpenAL source");

@@ -233,7 +233,9 @@ int main(int argc,
 
     // initialize player and load show file
     // player_init handles error printing internally
-    if ((err = player_init(&player, show_file_path, show_loop_count))) {
+    player.show_loop_count = show_loop_count;
+
+    if ((err = player_init(&player, show_file_path))) {
         lbr_perror(err, "failed to initialize player");
         return 1;
     }
