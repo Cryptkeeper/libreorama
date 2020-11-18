@@ -33,11 +33,11 @@
 #include "../lorinterface/minify.h"
 #include "../file.h"
 #include "../interval.h"
+#include "../seqtypes/lormedia.h"
 
 static int player_load_sequence_file(struct sequence_t *current_sequence,
                                      const char *sequence_file,
-                                     char **audio_file_hint,
-                                     enum sequence_type_t *sequence_type) {
+                                     char **audio_file_hint) {
     // locate a the last dot char in the string, if any
     // this is used to locate the file extension for determing the sequence type
     const char *dot = strrchr(sequence_file, '.');
@@ -47,19 +47,14 @@ static int player_load_sequence_file(struct sequence_t *current_sequence,
         return LBR_PLAYER_EBADEXT;
     }
 
-    *sequence_type = sequence_type_from_file_extension(dot);
-
     // detect failure to match the file extension to a sequence type
     // halt playback since otherwise only the audio would be played
-    if (*sequence_type == SEQUENCE_TYPE_UNKNOWN) {
+    if (strncmp(dot, ".lms", 4) != 0) {
         return LBR_PLAYER_EUNSUPEXT;
     }
 
-    const sequence_loader_t sequence_loader = sequence_type_get_loader(*sequence_type);
-
-    // pass off to whatever function is provided by #sequence_type_get_loader
     int err;
-    if ((err = sequence_loader(sequence_file, audio_file_hint, current_sequence))) {
+    if ((err = lormedia_sequence_load(sequence_file, audio_file_hint, current_sequence))) {
         return err;
     }
 
@@ -242,19 +237,16 @@ int player_start(struct player_t *player,
 
     // load the sequence file into memory
     // this will buffer the initial data, and remainder is streamed during updates
-    enum sequence_type_t sequence_type;
-
     char *audio_file_hint = NULL;
 
     int err;
-    if ((err = player_load_sequence_file(&current_sequence, current_sequence_file, &audio_file_hint, &sequence_type))) {
+    if ((err = player_load_sequence_file(&current_sequence, current_sequence_file, &audio_file_hint))) {
         // ensure the allocated audio_file_hint buf is freed
         free(audio_file_hint);
         return err;
     }
 
     printf("sequence_file: %s\n", current_sequence_file);
-    printf("sequence_type: %s\n", sequence_type_string(sequence_type));
     printf("audio_file_hint: %s\n", audio_file_hint);
     printf("step_time_ms: %dms (%d FPS)\n", current_sequence.step_time_ms, 1000 / current_sequence.step_time_ms);
     printf("frame_count: %d\n", current_sequence.frame_count);

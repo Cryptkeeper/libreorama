@@ -46,20 +46,4 @@ int sequence_add_channel(struct sequence_t *sequence,
 
 int sequence_merge_frame_data(struct sequence_t *sequence);
 
-enum sequence_type_t {
-    SEQUENCE_TYPE_LOR_MEDIA,
-    SEQUENCE_TYPE_LOR_EDIT,
-    SEQUENCE_TYPE_UNKNOWN,
-};
-
-char *sequence_type_string(enum sequence_type_t sequence_type);
-
-enum sequence_type_t sequence_type_from_file_extension(const char *file_ext);
-
-typedef int (*sequence_loader_t)(const char *sequence_file,
-                                 char **audio_file_hint,
-                                 struct sequence_t *sequence);
-
-sequence_loader_t sequence_type_get_loader(enum sequence_type_t sequence_type);
-
 #endif //LIBREORAMA_SEQUENCE_H

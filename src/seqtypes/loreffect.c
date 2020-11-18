@@ -28,23 +28,16 @@
 
 #define LOREFFECT_MAX_INTENSITY 100
 
-unsigned char loreffect_brightness(unsigned char effect_intensity) {
-    // LMS files use 0-100 for brightness scales
-    // normalize the value and scale it against 255 (full byte)
-    // this value will be encoded to a lor_brightness_t by encode.h
-    return (unsigned char) (((float) effect_intensity / 100.0f) * 255);
-}
+// LMS files use 0-100 for brightness scales
+// normalize the value and scale it against 255 (full byte)
+// this value will be encoded to a lor_brightness_t by encode.h
+#define LOREFFECT_BRIGHTNESS(x) ((unsigned char) (((float) x / 100.0f) * 255))
 
 int loreffect_get_frame(const xmlNode *effect_node,
                         struct frame_t *frame,
                         unsigned long start_cs,
                         unsigned long end_cs) {
     xmlChar *effect_type = xmlGetProp(effect_node, (const xmlChar *) "type");
-
-    if (effect_type == NULL) {
-        // if NULL, attempt to match settings property, used in .loredit files
-        effect_type = xmlGetProp(effect_node, (const xmlChar *) "settings");
-    }
 
     if (effect_type == NULL) {
         return LBR_LOADER_EMALFDATA;
@@ -70,7 +63,7 @@ int loreffect_get_frame(const xmlNode *effect_node,
                 *frame = (struct frame_t) {
                         .action = LOR_ACTION_CHANNEL_SET_BRIGHTNESS,
                         {
-                                .set_brightness = loreffect_brightness(intensity)
+                                .set_brightness = LOREFFECT_BRIGHTNESS(intensity)
                         }
                 };
             }
@@ -87,8 +80,8 @@ int loreffect_get_frame(const xmlNode *effect_node,
                     .action = LOR_ACTION_CHANNEL_FADE,
                     {
                             .fade = {
-                                    .from = loreffect_brightness(start_intensity),
-                                    .to = loreffect_brightness(end_intensity),
+                                    .from = LOREFFECT_BRIGHTNESS(start_intensity),
+                                    .to = LOREFFECT_BRIGHTNESS(end_intensity),
                                     .duration = lor_duration_of((float) (end_cs - start_cs) / 100.0f),
                             }
                     }

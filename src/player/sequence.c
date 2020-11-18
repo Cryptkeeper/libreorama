@@ -28,8 +28,6 @@
 #include <string.h>
 
 #include "../err/lbr.h"
-#include "../seqtypes/lormedia.h"
-#include "../seqtypes/loredit.h"
 
 void sequence_free(struct sequence_t *sequence) {
     if (sequence->merged_frame_data != NULL) {
@@ -129,37 +127,4 @@ int sequence_merge_frame_data(struct sequence_t *sequence) {
     }
 
     return 0;
-}
-
-char *sequence_type_string(enum sequence_type_t sequence_type) {
-    switch (sequence_type) {
-        case SEQUENCE_TYPE_LOR_MEDIA:
-            return "Light-O-Rama Legacy Media Sequence (lms)";
-        case SEQUENCE_TYPE_LOR_EDIT:
-            return "Light-O-Rama S5 Media Sequence (loredit)";
-        case SEQUENCE_TYPE_UNKNOWN:
-        default:
-            return "unknown";
-    }
-}
-
-enum sequence_type_t sequence_type_from_file_extension(const char *file_ext) {
-    if (strncmp(file_ext, ".lms", 4) == 0) {
-        return SEQUENCE_TYPE_LOR_MEDIA;
-    } else if (strncmp(file_ext, ".loredit", 8) == 0) {
-        return SEQUENCE_TYPE_LOR_EDIT;
-    } else {
-        return SEQUENCE_TYPE_UNKNOWN;
-    }
-}
-
-sequence_loader_t sequence_type_get_loader(enum sequence_type_t sequence_type) {
-    switch (sequence_type) {
-        case SEQUENCE_TYPE_LOR_MEDIA:
-            return lormedia_sequence_load;
-        case SEQUENCE_TYPE_LOR_EDIT:
-            return loredit_sequence_load;
-        default:
-            return NULL;
-    }
 }
