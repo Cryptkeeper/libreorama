@@ -26,7 +26,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "audio.h"
 #include "../err/al.h"
 #include "../err/lbr.h"
 #include "../lorinterface/encode.h"
@@ -78,8 +77,7 @@ static int player_load_sequence_file(struct sequence_t *current_sequence,
     return 0;
 }
 
-static int player_load_audio_file(const char *sequence_file,
-                                  char *audio_file_hint) {
+static int player_load_audio_file(char *audio_file_hint) {
     ALenum al_err;
 
     // if an AL buffer is already initialized, unload it first
@@ -89,7 +87,6 @@ static int player_load_audio_file(const char *sequence_file,
         // unqueue the buffer from the active source
         // otherwise the delete will fail since it is considered in use
         alSourceUnqueueBuffers(al_source, 1, &current_al_buffer);
-
         if ((al_err = al_get_error())) {
             al_perror(al_err, "failed to unqueue previous player buffer from source");
             return LBR_ESPERR;
@@ -97,36 +94,15 @@ static int player_load_audio_file(const char *sequence_file,
 
         // delete the buffer, freeing the memory
         alDeleteBuffers(1, &current_al_buffer);
-
         if ((al_err = al_get_error())) {
             al_perror(al_err, "failed to delete previous player buffer");
             return LBR_ESPERR;
         }
     }
 
-    // use #audio_find_sequence_file to determine if the file exists
-    // if it doesn't, it will internally attempt to locate it at another path
-    char *audio_file_or_fallback = NULL;
+    current_al_buffer = alutCreateBufferFromFile(audio_file_hint);
 
-    int err;
-    if ((err = audio_find_sequence_file(sequence_file, audio_file_hint, &audio_file_or_fallback))) {
-        // ensure audio_file_hint is always freed
-        free(audio_file_hint);
-
-        return err;
-    }
-
-    printf("using audio file: %s\n", audio_file_or_fallback);
-
-    current_al_buffer = alutCreateBufferFromFile(audio_file_or_fallback);
-
-    // audio_file_or_fallback is the audio_file pointer or a newly allocated one
-    // as such, audio_file should always be freed, but audio_file_or_fallback
-    // is only freed if it is not the same pointer as audio_file_hint
-    if (audio_file_or_fallback != audio_file_hint) {
-        free(audio_file_or_fallback);
-    }
-
+    // free allocated string
     free(audio_file_hint);
 
     // test for buffering errors
@@ -178,8 +154,6 @@ static void player_advance(struct player_t *player) {
 
 int player_init(struct player_t *player,
                 const char *show_file_path) {
-    show_loop_counter = 0;
-
     // generate the single OpenAL source
     // this is used for all player playback behavior
     alGenSources(1, &al_source);
@@ -258,7 +232,7 @@ int player_start(struct player_t *player,
 
     // attempt to load audio file provided by determined sequence type
     // this will delegate or fallback internally as needed
-    if ((err = player_load_audio_file(current_sequence_file, audio_file_hint))) {
+    if ((err = player_load_audio_file(audio_file_hint))) {
         return err;
     }
 

@@ -74,7 +74,7 @@ int xml_get_property(const xmlNode *node,
     xmlChar *value = xmlGetProp(node, (const xmlChar *) key);
 
     if (value == NULL) {
-        return 0;
+        return LBR_LOADER_EMALFDATA;
     }
 
     int return_code = 0;

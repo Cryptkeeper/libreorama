@@ -27,10 +27,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-#include <AL/alut.h>
-
 #include "sequence.h"
-#include "../lorinterface/frame.h"
 
 struct player_t {
     char   **sequence_files;
