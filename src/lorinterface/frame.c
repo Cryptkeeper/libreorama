@@ -25,6 +25,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "../err/lbr.h"
 
@@ -90,43 +91,37 @@ int frame_buffer_alloc(struct frame_buffer_t *frame_buffer,
     return 0;
 }
 
-// frame_buffer_t is backed by a unsigned char *
-// each write requests a blob, which is a subsection of that backing memory allocation
-// #frame_buffer_get_blob ensures each blob is a minimum length, otherwise reallocing the backing memory allocation
-// this ensures each write is safely within bounds (assuming each write is within the defined maximum length)
-int frame_buffer_get_blob(struct frame_buffer_t *frame_buffer,
-                          unsigned char **blob,
-                          size_t blob_length) {
-    // if written_length + requested blob_length is under max
-    //  then a blob is already available, instantly return its pointer
-    if (frame_buffer->written_length + blob_length <= frame_buffer->max_length) {
-        goto frame_buffer_get_blob_return;
+int frame_buffer_append(struct frame_buffer_t *frame_buffer,
+                        unsigned char *data,
+                        size_t len) {
+    // if written_length + requested len is over the max_length
+    //  then it the frame buffer's underlying allocation must be resized
+    if (frame_buffer->written_length + len > frame_buffer->max_length) {
+        size_t realloc_max_length = frame_buffer->max_length * FRAME_BUFFER_LENGTH_GROW_SCALE;
+
+        // max_length may be default value of 0
+        // safely handle initial resizing logic
+        if (realloc_max_length == 0) {
+            realloc_max_length = len;
+        }
+
+        unsigned char *realloc_data = realloc(frame_buffer->data, realloc_max_length);
+        if (data == NULL) {
+            return LBR_EERRNO;
+        }
+
+        fprintf(stderr, "reallocated frame buffer to %zu bytes (increase pre-allocation?)\n", realloc_max_length);
+
+        frame_buffer->data       = realloc_data;
+        frame_buffer->max_length = realloc_max_length;
     }
 
-    size_t realloc_max_length = frame_buffer->max_length * FRAME_BUFFER_LENGTH_GROW_SCALE;
+    // copy the incoming buffer data to the final frame buffer
+    unsigned char *start_addr = frame_buffer->data + frame_buffer->written_length;
+    memcpy(start_addr, data, len);
 
-    // max_length may be default value of 0
-    // safely handle initial resizing logic
-    if (realloc_max_length == 0) {
-        realloc_max_length = blob_length;
-    }
-
-    unsigned char *data = realloc(frame_buffer->data, realloc_max_length);
-
-    if (data == NULL) {
-        return LBR_EERRNO;
-    }
-
-    fprintf(stderr, "reallocated frame buffer to %zu bytes (increase pre-allocation?)\n", realloc_max_length);
-
-    frame_buffer->data       = data;
-    frame_buffer->max_length = realloc_max_length;
-
-    frame_buffer_get_blob_return:
-    // select the next available blob where the write index ends
-    // this packs the blobs next to each other but ensures a minimum length
-    //  as requested by the blob_length parameter
-    *blob = frame_buffer->data + frame_buffer->written_length;
+    // advance the written_length counter for the next append
+    frame_buffer->written_length += len;
 
     return 0;
 }

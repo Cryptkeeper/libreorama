@@ -28,52 +28,49 @@
 
 #include "../err/lbr.h"
 
-// assumes no individual lor_write_* call will use more than 16 bytes
-// see https://github.com/Cryptkeeper/liblightorama#memory-allocations
-#define ENCODE_MAXIMUM_BLOB_LENGTH 16
-
 static lor_brightness_t encode_brightness(unsigned char brightness) {
     return lor_brightness_curve_squared((float) brightness / 255.0f);
 }
+
+#define ENCODE_MAXIMUM_WRITE_LENGTH 16
+
+// assumes no individual lor_write_* call will use more than N bytes
+// see https://github.com/Cryptkeeper/liblightorama#memory-allocations
+// #encode_frame checks return lengths and will error if overwritten
+static unsigned char encode_buffer[ENCODE_MAXIMUM_WRITE_LENGTH];
 
 int encode_frame(struct frame_buffer_t *frame_buffer,
                  lor_unit_t unit,
                  LORChannelType channel_type,
                  lor_channel_t channel,
                  struct frame_t frame) {
-    unsigned char *blob = NULL;
-
-    int err;
-    if ((err = frame_buffer_get_blob(frame_buffer, &blob, ENCODE_MAXIMUM_BLOB_LENGTH))) {
-        return err;
-    }
-
     size_t written;
 
     switch (frame.action) {
         case LOR_ACTION_CHANNEL_SET_BRIGHTNESS:
-            written = lor_write_channel_set_brightness(unit, channel_type, channel, encode_brightness(frame.fade.to), blob);
+            written = lor_write_channel_set_brightness(unit, channel_type, channel, encode_brightness(frame.fade.to), encode_buffer);
             break;
-
         case LOR_ACTION_CHANNEL_FADE:
-            written = lor_write_channel_fade(unit, channel_type, channel, encode_brightness(frame.fade.from), encode_brightness(frame.fade.to), frame.fade.duration, blob);
+            written = lor_write_channel_fade(unit, channel_type, channel, encode_brightness(frame.fade.from), encode_brightness(frame.fade.to), frame.fade.duration, encode_buffer);
             break;
-
         case LOR_ACTION_CHANNEL_ON:
         case LOR_ACTION_CHANNEL_SHIMMER:
         case LOR_ACTION_CHANNEL_TWINKLE:
-            written = lor_write_channel_action(unit, channel_type, channel, frame.action, blob);
+            written = lor_write_channel_action(unit, channel_type, channel, frame.action, encode_buffer);
             break;
-
         default:
             return LBR_ENCODE_EUNSUPACTION;
     }
 
-    if (written > ENCODE_MAXIMUM_BLOB_LENGTH) {
+    if (written > ENCODE_MAXIMUM_WRITE_LENGTH) {
         return LBR_ENCODE_EBLOBTOOSMALL;
     }
 
-    frame_buffer->written_length += written;
+    // copy the encode_buffer's temporary data to the full frame buffer
+    int err;
+    if ((err = frame_buffer_append(frame_buffer, encode_buffer, written))) {
+        return err;
+    }
 
     return 0;
 }
@@ -81,35 +78,29 @@ int encode_frame(struct frame_buffer_t *frame_buffer,
 int encode_heartbeat_frame(struct frame_buffer_t *frame_buffer,
                            frame_index_t frame_index,
                            unsigned short step_time_ms) {
-    unsigned char *blob = NULL;
-
-    int err;
-    if ((err = frame_buffer_get_blob(frame_buffer, &blob, ENCODE_MAXIMUM_BLOB_LENGTH))) {
-        return err;
-    }
-
     // automatically push heartbeat messages into the frame buffer
     // this is timed for every 500ms, based off the frame index
     if (frame_index % (500 / step_time_ms) == 0) {
-        if ((err = frame_buffer_get_blob(frame_buffer, &blob, ENCODE_MAXIMUM_BLOB_LENGTH))) {
+        size_t written = lor_write_heartbeat(encode_buffer);
+
+        // copy the encode_buffer's temporary data to the full frame buffer
+        int err;
+        if ((err = frame_buffer_append(frame_buffer, encode_buffer, written))) {
             return err;
         }
-
-        frame_buffer->written_length += lor_write_heartbeat(blob);
     }
 
     return 0;
 }
 
 int encode_reset_frame(struct frame_buffer_t *frame_buffer) {
-    unsigned char *blob = NULL;
+    size_t written = lor_write_unit_action(LOR_UNIT_ID_BROADCAST, LOR_ACTION_UNIT_OFF, encode_buffer);
 
+    // copy the encode_buffer's temporary data to the full frame buffer
     int err;
-    if ((err = frame_buffer_get_blob(frame_buffer, &blob, ENCODE_MAXIMUM_BLOB_LENGTH))) {
+    if ((err = frame_buffer_append(frame_buffer, encode_buffer, written))) {
         return err;
     }
-
-    frame_buffer->written_length += lor_write_unit_action(LOR_UNIT_ID_BROADCAST, LOR_ACTION_UNIT_OFF, blob);
 
     return 0;
 }

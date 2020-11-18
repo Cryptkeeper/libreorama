@@ -63,9 +63,9 @@ void frame_buffer_free(struct frame_buffer_t *frame_buffer);
 int frame_buffer_alloc(struct frame_buffer_t *frame_buffer,
                        size_t initial_length);
 
-int frame_buffer_get_blob(struct frame_buffer_t *frame_buffer,
-                          unsigned char **blob,
-                          size_t blob_length);
+int frame_buffer_append(struct frame_buffer_t *frame_buffer,
+                        unsigned char *data,
+                        size_t len);
 
 int frame_buffer_reset_writer(struct frame_buffer_t *frame_buffer);
 
