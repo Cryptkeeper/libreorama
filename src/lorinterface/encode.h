@@ -27,16 +27,14 @@
 #include "../err/al.h"
 #include "../player/sequence.h"
 
-int encode_frame(struct frame_buffer_t *frame_buffer,
-                 lor_unit_t unit,
+int encode_frame(lor_unit_t unit,
                  LORChannelType channel_type,
                  lor_channel_t channel,
                  struct frame_t frame);
 
-int encode_heartbeat_frame(struct frame_buffer_t *frame_buffer,
-                           frame_index_t frame_index,
+int encode_heartbeat_frame(frame_index_t frame_index,
                            unsigned short step_time_ms);
 
-int encode_reset_frame(struct frame_buffer_t *frame_buffer);
+int encode_reset_frame();
 
 #endif //LIBREORAMA_ENCODE_H

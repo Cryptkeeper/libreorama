@@ -43,9 +43,8 @@ static void print_usage(void) {
     printf("\t-l <show loop count> (defaults to 1, \"i\" to infinitely loop)\n");
 }
 
-static struct sp_port        *serial_port = NULL;
-static struct frame_buffer_t frame_buffer;
-static struct player_t       player;
+static struct sp_port  *serial_port = NULL;
+static struct player_t player;
 
 static int sp_init_port(const char *device_name,
                         int baud_rate) {
@@ -82,7 +81,7 @@ static void handle_exit(void) {
     player_free(&player);
 
     // free the frame_buffer
-    frame_buffer_free(&frame_buffer);
+    frame_buffer_free();
 
     // fire alutExit, this assumes it was initialized already
     // this must happen after #player_free since player holds OpenAL sources/buffers
@@ -95,24 +94,20 @@ static void handle_exit(void) {
 }
 
 static int handle_frame_interrupt(unsigned short step_time_ms) {
-    if (frame_buffer.written_length > 0 && serial_port != NULL) {
+    if (frame_buffer_length > 0 && serial_port != NULL) {
         enum sp_return sp_return;
 
         // sp_nonblocking_write returns bytes written when non-error (<0 - SP_OK)
         // feed step_time_ms as timeout to avoid blocking writes from stalling playback
-        if ((sp_return = sp_blocking_write(serial_port, frame_buffer.data, frame_buffer.written_length, step_time_ms / 2u)) < SP_OK) {
+        if ((sp_return = sp_blocking_write(serial_port, frame_buffer_data, frame_buffer_length, step_time_ms / 2u)) < SP_OK) {
             sp_perror(sp_return, "failed to write frame data to serial port");
             return LBR_ESPERR;
         }
     }
 
     // reset the frame buffer writer back to 0
-    // always fire regardless of written_length so that it may sample 0 values
-    // this may internally downsize the backing memory block as needed
-    int err;
-    if ((err = frame_buffer_reset_writer(&frame_buffer))) {
-        return err;
-    }
+    // always fire regardless of serial_port to avoid over allocating
+    frame_buffer_reset_writer();
 
     return 0;
 }
@@ -229,8 +224,6 @@ int main(int argc,
         return 1;
     }
 
-    frame_buffer = FRAME_BUFFER_EMPTY;
-
     // initialize player and load show file
     // player_init handles error printing internally
     player.show_loop_count = show_loop_count;
@@ -247,14 +240,14 @@ int main(int argc,
     while (player_has_next(&player)) {
         // free the frame buffer between sequences
         // this ensures that if expanded by a sequence, that allocation is not maintained
-        frame_buffer_free(&frame_buffer);
+        frame_buffer_free();
 
         // initialize the default frame_buffer
         // this pre-allocates a working block of memory
         // a zero value (optional) avoids this pre-allocation and instead will
         //  require frame_buffer to allocate on the fly, increasing CPU but decreasing memory
         if (initial_frame_buffer_length > 0) {
-            if ((err = frame_buffer_alloc(&frame_buffer, initial_frame_buffer_length))) {
+            if ((err = frame_buffer_alloc(initial_frame_buffer_length))) {
                 lbr_perror(err, "failed to pre-allocate initial frame buffer");
                 return 1;
             } else {
@@ -264,7 +257,7 @@ int main(int argc,
 
         // load and buffer the sequence
         // this will internally block for playback
-        if ((err = player_start(&player, handle_frame_interrupt, &frame_buffer, time_correction_ms))) {
+        if ((err = player_start(&player, handle_frame_interrupt, time_correction_ms))) {
             lbr_perror(err, "failed to start player");
             return 1;
         }

@@ -24,9 +24,52 @@
 #include "minify.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "../err/lbr.h"
 #include "encode.h"
+
+enum frame_equals_mode_t {
+    EQUALS_MODE_STRICT,
+    EQUALS_MODE_VALUE
+};
+
+static bool frame_equals(const struct frame_t *a,
+                         const struct frame_t *b,
+                         enum frame_equals_mode_t equals_mode) {
+    if (a == NULL && b == NULL) {
+        return true;
+    } else if ((a == NULL) != (b == NULL)) {
+        return false;
+    }
+
+    if (a->action != b->action) {
+        return false;
+    }
+
+    switch (a->action) {
+        case LOR_ACTION_CHANNEL_SET_BRIGHTNESS:
+            return a->set_brightness == b->set_brightness;
+
+        case LOR_ACTION_CHANNEL_FADE:
+            if (equals_mode == EQUALS_MODE_STRICT) {
+                // fade actions are stateful internally to the hardware
+                // they cannot be equal and shouldn't be
+                return false;
+            } else if (equals_mode == EQUALS_MODE_VALUE) {
+                return a->fade.duration == b->fade.duration && a->fade.to == b->fade.to && a->fade.from == b->fade.from;
+            }
+
+        case LOR_ACTION_CHANNEL_ON:
+        case LOR_ACTION_CHANNEL_TWINKLE:
+        case LOR_ACTION_CHANNEL_SHIMMER:
+            return true;
+
+        default:
+            fprintf(stderr, "unable to compare frame equality: %d", a->action);
+            return false;
+    }
+}
 
 static int minify_channel_compare(const void *a,
                                   const void *b) {
@@ -40,15 +83,14 @@ static int minify_channel_compare(const void *a,
     return channel_a->circuit - channel_b->circuit;
 }
 
-static int minify_write_frames_unoptimized(struct frame_buffer_t *frame_buffer,
-                                           struct channel_t **channels,
+static int minify_write_frames_unoptimized(struct channel_t **channels,
                                            size_t len) {
     for (size_t i = 0; i < len; i++) {
         struct channel_t *channel = channels[i];
 
         if (channel->next_frame != NULL) {
             int err;
-            if ((err = encode_frame(frame_buffer, channel->unit, LOR_CHANNEL_ID, channel->circuit, *channel->next_frame))) {
+            if ((err = encode_frame(channel->unit, LOR_CHANNEL_ID, channel->circuit, *channel->next_frame))) {
                 return err;
             }
 
@@ -61,8 +103,7 @@ static int minify_write_frames_unoptimized(struct frame_buffer_t *frame_buffer,
     return 0;
 }
 
-static int minify_write_frames_optimized(struct frame_buffer_t *frame_buffer,
-                                         lor_unit_t unit,
+static int minify_write_frames_optimized(lor_unit_t unit,
                                          struct channel_t **channels,
                                          size_t len) {
     // iterate over each next frame
@@ -100,7 +141,7 @@ static int minify_write_frames_optimized(struct frame_buffer_t *frame_buffer,
         const LORChannelType channel_type = channel_mask <= UINT8_MAX ? LOR_CHANNEL_MASK8 : LOR_CHANNEL_MASK16;
 
         int err;
-        if ((err = encode_frame(frame_buffer, unit, channel_type, channel_mask, base_frame_copy))) {
+        if ((err = encode_frame(unit, channel_type, channel_mask, base_frame_copy))) {
             return err;
         }
     }
@@ -126,8 +167,7 @@ static bool minify_channels_fit_bitmask(const struct channel_t **channels,
     return true;
 }
 
-static int minify_unit(struct frame_buffer_t *frame_buffer,
-                       lor_unit_t unit,
+static int minify_unit(lor_unit_t unit,
                        struct channel_t **channels,
                        struct frame_t **frames,
                        size_t len) {
@@ -158,12 +198,12 @@ static int minify_unit(struct frame_buffer_t *frame_buffer,
     const bool fits_in_mask = minify_channels_fit_bitmask((const struct channel_t **) channels, len);
 
     if (fits_in_mask) {
-        return_code = minify_write_frames_optimized(frame_buffer, unit, channels, len);
+        return_code = minify_write_frames_optimized(unit, channels, len);
     } else {
         // this is a fallback handler if the channels do not fit in the max bitmask length
         // this writes each frame individually, unoptimized
         // this is arguably the worst case scenario
-        return_code = minify_write_frames_unoptimized(frame_buffer, channels, len);
+        return_code = minify_write_frames_unoptimized(channels, len);
     }
 
     if (return_code) {
@@ -190,8 +230,7 @@ static int minify_unit(struct frame_buffer_t *frame_buffer,
 }
 
 // todo: reduce allocations
-int minify_frame(struct frame_buffer_t *frame_buffer,
-                 const struct sequence_t *sequence,
+int minify_frame(const struct sequence_t *sequence,
                  frame_index_t frame_index) {
     int return_code = 0;
 
@@ -239,8 +278,7 @@ int minify_frame(struct frame_buffer_t *frame_buffer,
 
         if (last_channel->unit != channels[i]->unit) {
             int err;
-            if ((err = minify_unit(frame_buffer, last_channel->unit,
-                                   channels + last_group_index, frames + last_group_index, i - last_group_index))) {
+            if ((err = minify_unit(last_channel->unit, channels + last_group_index, frames + last_group_index, i - last_group_index))) {
                 return_code = err;
                 goto minify_frame_return;
             }
@@ -253,7 +291,7 @@ int minify_frame(struct frame_buffer_t *frame_buffer,
     // then all channels are in a single unit group
     if (last_group_index == 0 && sequence->channels_count > 0) {
         int err;
-        if ((err = minify_unit(frame_buffer, channels[0]->unit, channels, frames, sequence->channels_count))) {
+        if ((err = minify_unit(channels[0]->unit, channels, frames, sequence->channels_count))) {
             return_code = err;
             goto minify_frame_return;
         }

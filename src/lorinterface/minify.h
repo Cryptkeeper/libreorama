@@ -27,8 +27,7 @@
 #include "frame.h"
 #include "../player/sequence.h"
 
-int minify_frame(struct frame_buffer_t *frame_buffer,
-                 const struct sequence_t *sequence,
+int minify_frame(const struct sequence_t *sequence,
                  frame_index_t frame_index);
 
 #endif //LIBREORAMA_MINIFY_H

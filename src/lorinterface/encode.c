@@ -39,8 +39,7 @@ static lor_brightness_t encode_brightness(unsigned char brightness) {
 // #encode_frame checks return lengths and will error if overwritten
 static unsigned char encode_buffer[ENCODE_MAXIMUM_WRITE_LENGTH];
 
-int encode_frame(struct frame_buffer_t *frame_buffer,
-                 lor_unit_t unit,
+int encode_frame(lor_unit_t unit,
                  LORChannelType channel_type,
                  lor_channel_t channel,
                  struct frame_t frame) {
@@ -68,15 +67,14 @@ int encode_frame(struct frame_buffer_t *frame_buffer,
 
     // copy the encode_buffer's temporary data to the full frame buffer
     int err;
-    if ((err = frame_buffer_append(frame_buffer, encode_buffer, written))) {
+    if ((err = frame_buffer_append(encode_buffer, written))) {
         return err;
     }
 
     return 0;
 }
 
-int encode_heartbeat_frame(struct frame_buffer_t *frame_buffer,
-                           frame_index_t frame_index,
+int encode_heartbeat_frame(frame_index_t frame_index,
                            unsigned short step_time_ms) {
     // automatically push heartbeat messages into the frame buffer
     // this is timed for every 500ms, based off the frame index
@@ -85,7 +83,7 @@ int encode_heartbeat_frame(struct frame_buffer_t *frame_buffer,
 
         // copy the encode_buffer's temporary data to the full frame buffer
         int err;
-        if ((err = frame_buffer_append(frame_buffer, encode_buffer, written))) {
+        if ((err = frame_buffer_append(encode_buffer, written))) {
             return err;
         }
     }
@@ -93,12 +91,12 @@ int encode_heartbeat_frame(struct frame_buffer_t *frame_buffer,
     return 0;
 }
 
-int encode_reset_frame(struct frame_buffer_t *frame_buffer) {
+int encode_reset_frame() {
     size_t written = lor_write_unit_action(LOR_UNIT_ID_BROADCAST, LOR_ACTION_UNIT_OFF, encode_buffer);
 
     // copy the encode_buffer's temporary data to the full frame buffer
     int err;
-    if ((err = frame_buffer_append(frame_buffer, encode_buffer, written))) {
+    if ((err = frame_buffer_append(encode_buffer, written))) {
         return err;
     }
 

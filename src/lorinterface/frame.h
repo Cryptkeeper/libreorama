@@ -39,34 +39,18 @@ struct frame_t {
 
 static const struct frame_t FRAME_EMPTY;
 
-enum frame_equals_mode_t {
-    EQUALS_MODE_STRICT,
-    EQUALS_MODE_VALUE
-};
-
-bool frame_equals(const struct frame_t *a,
-                  const struct frame_t *b,
-                  enum frame_equals_mode_t equals_mode);
-
 typedef unsigned short frame_index_t;
 
-struct frame_buffer_t {
-    unsigned char *data;
-    size_t        written_length;
-    size_t        max_length;
-};
+extern unsigned char *frame_buffer_data;
+extern size_t        frame_buffer_length;
 
-static const struct frame_buffer_t FRAME_BUFFER_EMPTY;
+void frame_buffer_free();
 
-void frame_buffer_free(struct frame_buffer_t *frame_buffer);
+int frame_buffer_alloc(size_t initial_length);
 
-int frame_buffer_alloc(struct frame_buffer_t *frame_buffer,
-                       size_t initial_length);
-
-int frame_buffer_append(struct frame_buffer_t *frame_buffer,
-                        unsigned char *data,
+int frame_buffer_append(unsigned char *data,
                         size_t len);
 
-int frame_buffer_reset_writer(struct frame_buffer_t *frame_buffer);
+void frame_buffer_reset_writer();
 
 #endif //LIBREORAMA_FRAME_H
