@@ -54,7 +54,7 @@ char *lbr_error_string(int err) {
         case LBR_SEQUENCE_EWRITEINDEX:
             return "LBR_SEQUENCE_EWRITEINDEX (writer index mismatch)";
         case LBR_SEQUENCE_EINCCHANNELBUF:
-            return "LBR_SEQUENCE_EINCCHANNELBUF (too many channels, increase CHANNEL_BUFFER_COUNT)";
+            return "LBR_SEQUENCE_EINCCHANNELBUF (too many channels, increase CHANNEL_BUFFER_MAX_COUNT)";
 
         case LBR_PLAYER_EUNSUPEXT:
             return "LBR_PLAYER_EUNSUPEXT (unsupported file extension)";
@@ -64,7 +64,7 @@ char *lbr_error_string(int err) {
             return "LBR_PLAYER_ESHOWEMPTY (show is empty)";
 
         case LBR_ENCODE_EBUFFERTOOSMALL:
-            return "LBR_ENCODE_EBUFFERTOOSMALL (encoding buffer is too small)";
+            return "LBR_ENCODE_EBUFFERTOOSMALL (encoding buffer is too small, increase ENCODE_BUFFER_MAX_LENGTH)";
         case LBR_ENCODE_EUNSUPACTION:
             return "LBR_ENCODE_EUNSUPACTION (unsupported action)";
 

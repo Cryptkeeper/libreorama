@@ -34,7 +34,7 @@ struct frame_t *channel_get_frame(struct channel_t channel,
         return NULL;
     }
 
-    struct frame_t *frame = &(channel.frame_data[index]);
+    struct frame_t *frame = &channel.frame_data[index];
 
     // do not return empty frames
     // these are simply allocated, but do not contain metadata
@@ -64,7 +64,7 @@ int channel_buffer_request(lor_unit_t unit,
 
     // checkout a frame buffer
     int err;
-    if ((err = frame_buffer_request(frame_count, &(checkout->frame_data)))) {
+    if ((err = frame_buffer_request(frame_count, &checkout->frame_data))) {
         return err;
     }
 

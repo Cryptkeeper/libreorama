@@ -80,8 +80,6 @@ static void handle_exit(void) {
     // this will not modify player, be aware of potential dangling pointers
     player_free(&player);
 
-    encode_buffer_free();
-
     // fire alutExit, this assumes it was initialized already
     // this must happen after #player_free since player holds OpenAL sources/buffers
     alutExit();
@@ -93,12 +91,12 @@ static void handle_exit(void) {
 }
 
 static int handle_frame_interrupt(unsigned short step_time_ms) {
-    if (encode_buffer_length > 0 && serial_port != NULL) {
+    if (encode_buffer_index > 0 && serial_port != NULL) {
         enum sp_return sp_return;
 
         // sp_nonblocking_write returns bytes written when non-error (<0 - SP_OK)
         // feed step_time_ms as timeout to avoid blocking writes from stalling playback
-        if ((sp_return = sp_blocking_write(serial_port, encode_buffer, encode_buffer_length, step_time_ms / 2u)) < SP_OK) {
+        if ((sp_return = sp_blocking_write(serial_port, encode_buffer, encode_buffer_index, step_time_ms / 2u)) < SP_OK) {
             sp_perror(sp_return, "failed to write frame data to serial port");
             return LBR_ESPERR;
         }
@@ -224,10 +222,6 @@ int main(int argc,
     // #player_next will return true as long as there is a sequence to play
     // false values will break the loop and cleanly terminate the program
     while (player_has_next(&player)) {
-        // free the encode buffer between sequences
-        // this ensures that if expanded by a sequence, that allocation is not maintained
-        encode_buffer_free();
-
         // load and buffer the sequence
         // this will internally block for playback
         if ((err = player_start(&player, handle_frame_interrupt, time_correction_ms))) {

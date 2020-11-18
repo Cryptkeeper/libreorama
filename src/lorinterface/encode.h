@@ -27,13 +27,14 @@
 #include "../err/al.h"
 #include "../player/sequence.h"
 
-extern unsigned char *encode_buffer;
-extern size_t        encode_buffer_length;
+#define ENCODE_BUFFER_MAX_LENGTH 4096
 
-void encode_buffer_free();
+extern unsigned char encode_buffer[ENCODE_BUFFER_MAX_LENGTH];
+extern size_t        encode_buffer_index;
 
-int encode_buffer_append(unsigned char *data,
-                         size_t len);
+unsigned char *encode_buffer_write_index();
+
+int encode_buffer_advance(size_t len);
 
 void encode_buffer_reset();
 

@@ -144,7 +144,7 @@ int lormedia_sequence_load(const char *sequence_file,
                     //  to determine the frame_index for this effect_node
                     // this is because effect_nodes may be out of order, or in variable interval
                     const frame_index_t frame_index_start = (frame_index_t) ((start_cs * 10) / sequence->step_time_ms);
-                    struct frame_t      *frame            = &(channel->frame_data[frame_index_start]);
+                    struct frame_t      *frame            = &channel->frame_data[frame_index_start];
 
                     if ((err = loreffect_get_frame(effect_node, frame, start_cs, end_cs))) {
                         return_code = err;
