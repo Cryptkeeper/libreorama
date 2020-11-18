@@ -53,6 +53,30 @@ int lormedia_sequence_load(const char *sequence_file,
         return err;
     }
 
+    // read the <tracks> element
+    // each child will contain a "totalCentiseconds" property
+    // locate the highest value to be used as a "total sequence duration" value
+    const xmlNode *tracks_element = xml_find_node_child(sequence_element, "tracks");
+    xmlNode       *track_node     = tracks_element->children;
+
+    unsigned long highest_total_cs = 0;
+
+    while (track_node != NULL) {
+        if (xml_is_named_node(track_node, "track")) {
+            const unsigned long total_cs = (unsigned long) xml_get_propertyl(track_node, "totalCentiseconds");
+
+            if (total_cs > highest_total_cs) {
+                highest_total_cs = total_cs;
+            }
+        }
+
+        track_node = track_node->next;
+    }
+
+    // convert the highest_total_cs value from centiseconds into a frame_count
+    // this used the previously determined step_time as a frame interval time
+    sequence->frame_count = (frame_index_t) ((highest_total_cs * 10) / sequence->step_time_ms);
+
     // find the <channels> element and iterate over each children's children
     // use the startCentisecond & endCentisecond properties to understand each effects time length
     // select the lowest value to be used for the step_time
@@ -69,9 +93,9 @@ int lormedia_sequence_load(const char *sequence_file,
             const lor_channel_t circuit = (lor_channel_t) (xml_get_propertyl(channel_node, "circuit") - 1);
 
             // append the channel_node to the sequence channels
-            struct channel_t *channel_ptr = NULL;
+            struct channel_t *channel = NULL;
 
-            if ((err = sequence_add_channel(sequence, unit, circuit, &channel_ptr))) {
+            if ((err = channel_buffer_request(unit, circuit, sequence->frame_count, &channel))) {
                 return_code = err;
                 goto lormedia_free;
             }
@@ -104,10 +128,8 @@ int lormedia_sequence_load(const char *sequence_file,
                     // this is because effect_nodes may be out of order, or in variable interval
                     const frame_index_t frame_index_start = (frame_index_t) ((start_cs * 10) / sequence->step_time_ms);
 
-                    if ((err = channel_set_frame_data(channel_ptr, frame_index_start, frame))) {
-                        return_code = err;
-                        goto lormedia_free;
-                    }
+                    // TODO: does this assign work?
+                    channel->frame_data[frame_index_start] = frame;
                 }
 
                 effect_node = effect_node->next;
@@ -116,30 +138,6 @@ int lormedia_sequence_load(const char *sequence_file,
 
         channel_node = channel_node->next;
     }
-
-    // read the <tracks> element
-    // each child will contain a "totalCentiseconds" property
-    // locate the highest value to be used as a "total sequence duration" value
-    const xmlNode *tracks_element = xml_find_node_child(sequence_element, "tracks");
-    xmlNode       *track_node     = tracks_element->children;
-
-    unsigned long highest_total_cs = 0;
-
-    while (track_node != NULL) {
-        if (xml_is_named_node(track_node, "track")) {
-            const unsigned long total_cs = (unsigned long) xml_get_propertyl(track_node, "totalCentiseconds");
-
-            if (total_cs > highest_total_cs) {
-                highest_total_cs = total_cs;
-            }
-        }
-
-        track_node = track_node->next;
-    }
-
-    // convert the highest_total_cs value from centiseconds into a frame_count
-    // this used the previously determined step_time as a frame interval time
-    sequence->frame_count = (frame_index_t) ((highest_total_cs * 10) / sequence->step_time_ms);
 
     lormedia_free:
     xmlFreeDoc(doc);

@@ -30,25 +30,27 @@
 
 #include "frame.h"
 
+#define CHANNEL_BUFFER_MAX_COUNT 128
+
 struct channel_t {
     lor_unit_t     unit;
     lor_channel_t  circuit;
     struct frame_t *frame_data;
-    frame_index_t  frame_data_count;
-    frame_index_t  frame_data_count_max;
-    frame_index_t  first_frame_offset;
-    bool has_first_frame_offset;
     struct frame_t *last_sent_frame;
     struct frame_t *next_frame;
 };
 
-static const struct channel_t CHANNEL_EMPTY;
+extern struct channel_t channel_buffer[CHANNEL_BUFFER_MAX_COUNT];
+extern size_t           channel_buffer_index;
 
-struct frame_t *channel_get_frame(const struct channel_t *channel,
-                                  frame_index_t frame_index);
+int channel_buffer_request(lor_unit_t unit,
+                           lor_channel_t circuit,
+                           frame_index_t frame_count,
+                           struct channel_t **channel);
 
-int channel_set_frame_data(struct channel_t *channel,
-                           frame_index_t frame_index,
-                           struct frame_t frame);
+void channel_buffer_reset();
+
+int channel_init_frame_data(struct channel_t *channel,
+                            frame_index_t count);
 
 #endif //LIBREORAMA_CHANNEL_H

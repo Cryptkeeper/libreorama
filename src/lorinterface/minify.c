@@ -66,7 +66,7 @@ static bool frame_equals(const struct frame_t *a,
             return true;
 
         default:
-            fprintf(stderr, "unable to compare frame equality: %d", a->action);
+            fprintf(stderr, "unable to compare frame equality: %d\n", a->action);
             return false;
     }
 }
@@ -151,7 +151,7 @@ static int minify_write_frames_optimized(lor_unit_t unit,
 
 static bool minify_channels_fit_bitmask(const struct channel_t **channels,
                                         size_t len) {
-    static const size_t max_length = sizeof(lor_channel_t);
+    static const size_t max_length = sizeof(lor_channel_t) * 8;
 
     if (len > max_length) {
         return false;
@@ -237,35 +237,41 @@ int minify_frame(const struct sequence_t *sequence,
     // channels_count will never be 0 at this point
     //  it is checked by player.c prior to playback
     // this check is included to appease Clang-Tidy warnings
-    if (sequence->channels_count == 0) {
+    if (channel_buffer_index == 0) {
         return LBR_SEQUENCE_ENOCHANNELS;
     }
 
     // sort channels by unit+circuit in descending order
     // this allows a iteration loop to easily detect unit "breaks"
-    struct channel_t **channels = malloc(sizeof(struct channel_t *) * sequence->channels_count);
+    struct channel_t **channels = malloc(sizeof(struct channel_t *) * channel_buffer_index);
 
     if (channels == NULL) {
         return LBR_EERRNO;
     }
 
-    for (size_t i = 0; i < sequence->channels_count; i++) {
-        channels[i] = &sequence->channels[i];
+    for (size_t i = 0; i < channel_buffer_index; i++) {
+        channels[i] = &channel_buffer[i];
     }
 
-    qsort(channels, sequence->channels_count, sizeof(struct channel_t *), minify_channel_compare);
+    qsort(channels, channel_buffer_index, sizeof(struct channel_t *), minify_channel_compare);
 
     // create an array of the new frame values
     // this is derived from the sorted channels array so indexes match
-    struct frame_t **frames = malloc(sizeof(struct frame_t *) * sequence->channels_count);
+    struct frame_t **frames = malloc(sizeof(struct frame_t *) * channel_buffer_index);
 
     if (frames == NULL) {
         return_code = LBR_EERRNO;
         goto minify_frame_return;
     }
 
-    for (size_t i = 0; i < sequence->channels_count; i++) {
-        frames[i] = channel_get_frame(channels[i], frame_index);
+    for (size_t i = 0; i < channel_buffer_index; i++) {
+        struct frame_t *frame = &(channels[i]->frame_data[frame_index]);
+
+        if (frame_is_init(*frame)) {
+            frames[i] = frame;
+        } else {
+            frames[i] = NULL;
+        }
     }
 
     // iterate over channels
@@ -273,7 +279,7 @@ int minify_frame(const struct sequence_t *sequence,
     // start at index 1 to avoid underflowing 0
     size_t last_group_index = 0;
 
-    for (size_t i = 1; i < sequence->channels_count; i++) {
+    for (size_t i = 1; i < channel_buffer_index; i++) {
         const struct channel_t *last_channel = channels[i - 1];
 
         if (last_channel->unit != channels[i]->unit) {
@@ -289,9 +295,9 @@ int minify_frame(const struct sequence_t *sequence,
 
     // if last_group_index == 0 and channels length > 0
     // then all channels are in a single unit group
-    if (last_group_index == 0 && sequence->channels_count > 0) {
+    if (last_group_index == 0 && channel_buffer_index > 0) {
         int err;
-        if ((err = minify_unit(channels[0]->unit, channels, frames, sequence->channels_count))) {
+        if ((err = minify_unit(channels[0]->unit, channels, frames, channel_buffer_index))) {
             return_code = err;
             goto minify_frame_return;
         }

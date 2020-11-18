@@ -74,7 +74,7 @@ Usage: libreorama [options] <serial port name>
 Options:
 	-b <serial port baud rate> (defaults to 19200)
 	-f <show file path> (defaults to "show.txt")
-	-p <pre-allocated frame buffer length> (defaults to 0 bytes)
+	-p <pre-allocated encode buffer length> (defaults to 0 bytes)
 	-c <time correction offset in milliseconds> (defaults to 0)
 	-l <show loop count> (defaults to 1, "i" to infinitely loop)
 ```
@@ -107,12 +107,12 @@ libreorama uses a runtime minimiser for optimizing the outgoing network protocol
 
 Any sequence that duplicates effects across channels, or commonly controls several channels within a unit at a time, will see a ~30% improvement in network bandwidth usage.
 
-### Frame Buffer
-libreorama interprets the Light-O-Rama sequence file in frames. Each frame is simplified if possible, and encoded into the network protocol equivalent to be written to the serial port. As it is encoded, it is stored in the "frame buffer". For complex sequences, there may be a lot of network traffic and subsequently a larger frame buffer is necessary. libreorama will automatically expand (and shrink) the frame buffer to fit demand. When it expands the frame buffer, it will print a warning.
+### Encode Buffer
 
-`reallocated frame buffer to 128 bytes (increase pre-allocation?)`
+libreorama interprets the Light-O-Rama sequence file in frames. Each frame is simplified if possible, and encoded into the network protocol equivalent to be written to the serial port. As it is encoded, it is stored in the "encode buffer". For complex sequences, there may be a lot of network traffic and subsequently a larger encode buffer is necessary. libreorama will automatically expand (and shrink) the encode buffer to fit demand. When it expands the encode buffer, it will print a warning.
+`reallocated encode buffer to 128 bytes (increase pre-allocation?)`
 
-If this frequently happens (and your host environment has memory to spare), consider using the `-p` option to pre-allocate a larger frame buffer. This enables you to use more memory to reduce CPU time.
+If this frequently happens (and your host environment has memory to spare), consider using the `-p` option to pre-allocate a larger encode buffer. This enables you to use more memory to reduce CPU time.
 
 ### Playback Timing
 libreorama will automatically determine a step time (or FPS) for each sequence when loaded. Currently, it will select the highest resolution step time needed to faithfully playback the sequence without difference. 

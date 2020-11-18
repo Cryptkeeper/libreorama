@@ -37,20 +37,10 @@ struct frame_t {
     };
 } __attribute__((packed));
 
+bool frame_is_init(struct frame_t frame);
+
 static const struct frame_t FRAME_EMPTY;
 
 typedef unsigned short frame_index_t;
-
-extern unsigned char *frame_buffer_data;
-extern size_t        frame_buffer_length;
-
-void frame_buffer_free();
-
-int frame_buffer_alloc(size_t initial_length);
-
-int frame_buffer_append(unsigned char *data,
-                        size_t len);
-
-void frame_buffer_reset_writer();
 
 #endif //LIBREORAMA_FRAME_H

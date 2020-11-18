@@ -13,7 +13,7 @@ if (APPLE)
     link_directories(/usr/local/lib)
 endif ()
 
-add_executable(libreorama src/main.c src/player/player.h src/player/player.c src/err/al.h src/err/al.c src/err/sp.h src/err/sp.c src/file.c src/file.h src/player/sequence.c src/player/sequence.h src/seqtypes/lormedia.c src/seqtypes/lormedia.h src/lorinterface/encode.h src/lorinterface/encode.c src/lorinterface/frame.h src/lorinterface/channel.c src/lorinterface/channel.h src/lorinterface/frame.c src/lorinterface/effect.h src/err/lbr.c src/err/lbr.h src/interval.c src/interval.h src/lorinterface/minify.c src/lorinterface/minify.h src/seqtypes/lorparse.h src/seqtypes/lorparse.c src/seqtypes/loreffect.c src/seqtypes/loreffect.h)
+add_executable(libreorama src/main.c src/player/player.h src/player/player.c src/err/al.h src/err/al.c src/err/sp.h src/err/sp.c src/file.c src/file.h src/player/sequence.h src/seqtypes/lormedia.c src/seqtypes/lormedia.h src/lorinterface/encode.h src/lorinterface/encode.c src/lorinterface/frame.h src/lorinterface/channel.c src/lorinterface/channel.h src/lorinterface/frame.c src/lorinterface/effect.h src/err/lbr.c src/err/lbr.h src/interval.c src/interval.h src/lorinterface/minify.c src/lorinterface/minify.h src/seqtypes/lorparse.h src/seqtypes/lorparse.c src/seqtypes/loreffect.c src/seqtypes/loreffect.h)
 
 if (APPLE)
     target_link_libraries(libreorama liblightorama.a libserialport.a libalut.a libxml2.a)

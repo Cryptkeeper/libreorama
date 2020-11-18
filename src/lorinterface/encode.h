@@ -27,8 +27,20 @@
 #include "../err/al.h"
 #include "../player/sequence.h"
 
+extern unsigned char *encode_buffer;
+extern size_t        encode_buffer_length;
+
+void encode_buffer_free();
+
+int encode_buffer_alloc(size_t initial_length);
+
+int encode_buffer_append(unsigned char *data,
+                         size_t len);
+
+void encode_buffer_reset();
+
 int encode_frame(lor_unit_t unit,
-                 LORChannelType channel_type,
+                 enum lor_channel_type_t channel_type,
                  lor_channel_t channel,
                  struct frame_t frame);
 

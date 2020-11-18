@@ -64,14 +64,8 @@ static int player_load_sequence_file(struct sequence_t *current_sequence,
         return err;
     }
 
-    if (current_sequence->channels_count == 0) {
+    if (channel_buffer_index == 0) {
         return LBR_SEQUENCE_ENOCHANNELS;
-    }
-
-    // shrink the sequence before it is passed back to the caller
-    // this minimizes & merges frame_data allocations internally
-    if ((err = sequence_merge_frame_data(current_sequence))) {
-        return err;
     }
 
     return 0;
@@ -127,8 +121,8 @@ static int player_load_audio_file(char *audio_file_hint) {
     return 0;
 }
 
-static int player_reset_frame_buffer(player_frame_interrupt_t frame_interrupt,
-                                     unsigned short step_time_ms) {
+static int player_reset_encode_buffer(player_frame_interrupt_t frame_interrupt,
+                                      unsigned short step_time_ms) {
     int err;
     if ((err = encode_reset_frame())) {
         return err;
@@ -226,7 +220,7 @@ int player_start(struct player_t *player,
     printf("audio_file_hint: %s\n", audio_file_hint);
     printf("step_time_ms: %dms (%d FPS)\n", current_sequence.step_time_ms, 1000 / current_sequence.step_time_ms);
     printf("frame_count: %d\n", current_sequence.frame_count);
-    printf("channels_count: %zu\n", current_sequence.channels_count);
+    printf("channels_count: %zu\n", channel_buffer_index);
 
     // attempt to load audio file provided by determined sequence type
     // this will delegate or fallback internally as needed
@@ -267,7 +261,7 @@ int player_start(struct player_t *player,
 
     // reset the initial output state
     // otherwise channels may still be active when initially booted
-    if ((err = player_reset_frame_buffer(frame_interrupt, current_sequence.step_time_ms))) {
+    if ((err = player_reset_encode_buffer(frame_interrupt, current_sequence.step_time_ms))) {
         return err;
     }
 
@@ -318,13 +312,11 @@ int player_start(struct player_t *player,
 
     // encode a reset frame and trigger a final interrupt
     // this resets any active light output states
-    if ((err = player_reset_frame_buffer(frame_interrupt, current_sequence.step_time_ms))) {
+    if ((err = player_reset_encode_buffer(frame_interrupt, current_sequence.step_time_ms))) {
         return err;
     }
 
-    // free the current sequence
-    // this frees any internal allocations and removes dangling pointers
-    sequence_free(&current_sequence);
+    channel_buffer_reset();
 
     player_advance(player);
 

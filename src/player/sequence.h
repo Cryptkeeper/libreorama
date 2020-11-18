@@ -30,20 +30,8 @@
 #include "../lorinterface/frame.h"
 
 struct sequence_t {
-    unsigned short   step_time_ms;
-    frame_index_t    frame_count;
-    size_t           channels_count;
-    struct channel_t *channels;
-    struct frame_t   *merged_frame_data;
+    unsigned short step_time_ms;
+    frame_index_t  frame_count;
 };
-
-void sequence_free(struct sequence_t *sequence);
-
-int sequence_add_channel(struct sequence_t *sequence,
-                         lor_unit_t unit,
-                         lor_channel_t circuit,
-                         struct channel_t **channel);
-
-int sequence_merge_frame_data(struct sequence_t *sequence);
 
 #endif //LIBREORAMA_SEQUENCE_H

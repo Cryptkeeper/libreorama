@@ -53,6 +53,8 @@ char *lbr_error_string(int err) {
             return "LBR_SEQUENCE_ENOCHANNELS (sequence contains no channels)";
         case LBR_SEQUENCE_EWRITEINDEX:
             return "LBR_SEQUENCE_EWRITEINDEX (writer index mismatch)";
+        case LBR_SEQUENCE_EINCCHANNELBUF:
+            return "LBR_SEQUENCE_EINCCHANNELBUF (too many channels, increase CHANNEL_BUFFER_COUNT)";
 
         case LBR_PLAYER_EUNSUPEXT:
             return "LBR_PLAYER_EUNSUPEXT (unsupported file extension)";
