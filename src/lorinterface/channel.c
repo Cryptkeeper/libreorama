@@ -28,8 +28,9 @@
 #include "../err/lbr.h"
 
 struct frame_t *channel_get_frame(struct channel_t channel,
+                                  frame_index_t frame_count,
                                   frame_index_t index) {
-    if (index >= channel.frame_count) {
+    if (index >= frame_count) {
         return NULL;
     }
 
@@ -69,9 +70,8 @@ int channel_buffer_request(lor_unit_t unit,
 
     // by requiring params, this ensures any downstream
     //  usages are forced to initialize these values
-    checkout->unit        = unit;
-    checkout->circuit     = circuit;
-    checkout->frame_count = frame_count;
+    checkout->unit    = unit;
+    checkout->circuit = circuit;
 
     *channel = checkout;
     channel_buffer_index++;

@@ -265,7 +265,7 @@ int minify_frame(const struct sequence_t *sequence,
     }
 
     for (size_t i = 0; i < channel_buffer_index; i++) {
-        frames[i] = channel_get_frame(*channels[i], frame_index);
+        frames[i] = channel_get_frame(*channels[i], sequence->frame_count, frame_index);
     }
 
     // iterate over channels
