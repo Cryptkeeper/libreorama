@@ -16,6 +16,7 @@ libreorama emphasizes the [Unix philosophy](https://en.wikipedia.org/wiki/Unix_p
 * No time scheduling features, no setup, no configuration, no custom file formats. Grab the binary and go.
 * Portable code. Simple C code makes it easy to compile for different environments and OSes.
 * Fast, lightweight and reliable. Keep memory allocations, disk activity and network usage minimal.
+* Avoid dynamic memory allocations to ensure consistent memory usage.
 * Hackable and customizable. libreorama is ~2,000 lines of code and a simple project.
 
 ## Compatibility
@@ -65,6 +66,13 @@ Once installed, compile libreorama:
 
 This will compile a `libreorama` binary, ready to use. `make install` is available to install libreorama to your user bin path.
 
+### Configuration Constants
+
+libreorama contains several pre-sized buffers to ensure memory usage is constant. If your usage is extreme, you may need to modify the values. libreorama does not support a configuration file, so any modifications will require the project be recompiled.
+
+* `ENCODE_BUFFER_MAX_LENGTH` (see `encode.h`), defaults to 4096. This is the maximum per frame network buffer length. This is used for encoding and buffering the Light-O-Rama network data prior to being written to the serial port.
+* `CHANNEL_BUFFER_MAX_COUNT` (see `channel.h`), defaults to 128. This is the maximum amount of supported channels.
+
 ## Usage
 libreorama is designed as a CLI program that plays a sequence (or list of sequences) when ran. Once playback is complete, it will exit. Scheduling behavior can be done using libreorama in conjunction with other programs such as [cron](https://en.wikipedia.org/wiki/Cron).
 
@@ -74,7 +82,6 @@ Usage: libreorama [options] <serial port name>
 Options:
 	-b <serial port baud rate> (defaults to 19200)
 	-f <show file path> (defaults to "show.txt")
-	-p <pre-allocated encode buffer length> (defaults to 0 bytes)
 	-c <time correction offset in milliseconds> (defaults to 0)
 	-l <show loop count> (defaults to 1, "i" to infinitely loop)
 ```
@@ -108,11 +115,9 @@ libreorama uses a runtime minimiser for optimizing the outgoing network protocol
 Any sequence that duplicates effects across channels, or commonly controls several channels within a unit at a time, will see a ~30% improvement in network bandwidth usage.
 
 ### Encode Buffer
-
-libreorama interprets the Light-O-Rama sequence file in frames. Each frame is simplified if possible, and encoded into the network protocol equivalent to be written to the serial port. As it is encoded, it is stored in the "encode buffer". For complex sequences, there may be a lot of network traffic and subsequently a larger encode buffer is necessary. libreorama will automatically expand (and shrink) the encode buffer to fit demand. When it expands the encode buffer, it will print a warning.
-`reallocated encode buffer to 128 bytes (increase pre-allocation?)`
-
-If this frequently happens (and your host environment has memory to spare), consider using the `-p` option to pre-allocate a larger encode buffer. This enables you to use more memory to reduce CPU time.
+libreorama interprets the Light-O-Rama sequence file in frames. Each frame is simplified if possible, and encoded into the network protocol equivalent to be written to the serial port. As it is encoded, it is stored in the "encode buffer". For complex sequences, there may be a lot of network traffic and subsequently a larger encode buffer is necessary. If this occurs, libreorama will exit with error code `LBR_ENCODE_EBUFFERTOOSMALL`.
+ 
+The encode buffer can be increased by modifying `ENCODE_BUFFER_MAX_LENGTH` within `encode.h`. You will need to recompile libreorama. This value is predefined as 4096 bytes, and should be compatible with most medium sized networks out of the box.
 
 ### Playback Timing
 libreorama will automatically determine a step time (or FPS) for each sequence when loaded. Currently, it will select the highest resolution step time needed to faithfully playback the sequence without difference. 
