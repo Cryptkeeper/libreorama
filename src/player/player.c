@@ -84,14 +84,14 @@ static int player_load_audio_file(char *audio_file_hint) {
         // unqueue the buffer from the active source
         // otherwise the delete will fail since it is considered in use
         alSourceUnqueueBuffers(al_source, 1, &current_al_buffer);
-        if ((al_err = al_get_error())) {
+        if ((al_err = al_get_error()) != AL_NO_ERROR) {
             al_perror(al_err, "failed to unqueue previous player buffer from source");
             return LBR_ESPERR;
         }
 
         // delete the buffer, freeing the memory
         alDeleteBuffers(1, &current_al_buffer);
-        if ((al_err = al_get_error())) {
+        if ((al_err = al_get_error()) != AL_NO_ERROR) {
             al_perror(al_err, "failed to delete previous player buffer");
             return LBR_ESPERR;
         }
@@ -99,11 +99,8 @@ static int player_load_audio_file(char *audio_file_hint) {
 
     current_al_buffer = alutCreateBufferFromFile(audio_file_hint);
 
-    // free allocated string
-    free(audio_file_hint);
-
     // test for buffering errors
-    if ((al_err = al_get_error())) {
+    if ((al_err = al_get_error()) != AL_NO_ERROR) {
         al_perror(al_err, "failed to buffer audio file");
         return LBR_ESPERR;
     }
@@ -116,7 +113,7 @@ static int player_load_audio_file(char *audio_file_hint) {
     // this enables #player_start to simply play the source to start
     alSourcei(al_source, AL_BUFFER, current_al_buffer);
 
-    if ((al_err = al_get_error())) {
+    if ((al_err = al_get_error()) != AL_NO_ERROR) {
         al_perror(al_err, "failed to assign OpenAL source buffer");
         return LBR_ESPERR;
     }
@@ -155,7 +152,7 @@ int player_init(struct player_t *player,
     alGenSources(1, &al_source);
 
     ALenum err;
-    if ((err = al_get_error())) {
+    if ((err = al_get_error()) != AL_NO_ERROR) {
         al_perror(err, "failed to generate OpenAL source");
         return LBR_ESPERR;
     }
@@ -231,6 +228,8 @@ int player_start(struct player_t *player,
         return err;
     }
 
+    free(audio_file_hint);
+
     printf("playing...\n");
 
     // notify OpenAL to start source playback
@@ -238,7 +237,7 @@ int player_start(struct player_t *player,
     alSourcePlay(al_source);
 
     ALenum al_err;
-    if ((al_err = al_get_error())) {
+    if ((al_err = al_get_error()) != AL_NO_ERROR) {
         al_perror(al_err, "failed to play OpenAL source");
         return LBR_ESPERR;
     }
@@ -295,7 +294,7 @@ int player_start(struct player_t *player,
         // this helps ensure a consistent result
         alGetSourcei(al_source, AL_SOURCE_STATE, &source_state);
 
-        if ((al_err = al_get_error())) {
+        if ((al_err = al_get_error()) != AL_NO_ERROR) {
             al_perror(al_err, "failed to get player source state");
             return LBR_ESPERR;
         }
@@ -339,7 +338,7 @@ void player_free(const struct player_t *player) {
     if (has_al_buffer) {
         alDeleteBuffers(1, &current_al_buffer);
 
-        if ((err = al_get_error())) {
+        if ((err = al_get_error()) != AL_NO_ERROR) {
             al_perror(err, "failed to delete current OpenAL buffer");
         }
     }
@@ -347,7 +346,7 @@ void player_free(const struct player_t *player) {
     if (has_al_source) {
         alDeleteSources(1, &al_source);
 
-        if ((err = al_get_error())) {
+        if ((err = al_get_error()) != AL_NO_ERROR) {
             al_perror(err, "failed to delete OpenAL source");
         }
     }

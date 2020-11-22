@@ -31,7 +31,7 @@
 // LMS files use 0-100 for brightness scales
 // normalize the value and scale it against 255 (full byte)
 // this value will be encoded to a lor_brightness_t by encode.h
-#define LOREFFECT_BRIGHTNESS(x) ((unsigned char) (((float) x / 100.0f) * 255))
+#define LOREFFECT_BRIGHTNESS(x) ((unsigned char) (((float) (x) / 100.0f) * 255))
 
 int loreffect_get_frame(const xmlNode *effect_node,
                         struct frame_t *frame,

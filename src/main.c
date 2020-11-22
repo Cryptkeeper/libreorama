@@ -85,7 +85,7 @@ static void handle_exit(void) {
     alutExit();
 
     ALenum err;
-    if ((err = al_get_error())) {
+    if ((err = al_get_error()) != AL_NO_ERROR) {
         al_perror(err, "failed to exit ALUT");
     }
 }
@@ -203,7 +203,7 @@ int main(int argc,
     alutInit(NULL, NULL);
 
     ALenum al_err;
-    if ((al_err = al_get_error())) {
+    if ((al_err = al_get_error()) != AL_NO_ERROR) {
         al_perror(al_err, "failed to initialize ALUT");
         return 1;
     }

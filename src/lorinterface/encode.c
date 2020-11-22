@@ -28,7 +28,7 @@
 
 #include "../err/lbr.h"
 
-#define LORENCODE_BRIGHTNESS(brightness) ((lor_brightness_curve_squared((float) brightness / 255.0f)))
+#define LORENCODE_BRIGHTNESS(brightness) ((lor_brightness_curve_squared((float) (brightness) / 255.0f)))
 
 unsigned char encode_buffer[ENCODE_BUFFER_MAX_LENGTH];
 size_t        encode_buffer_index;

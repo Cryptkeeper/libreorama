@@ -99,7 +99,7 @@ sequences/My Second Sequence.lms
 There is no explicit limit to how many sequences are in a show (besides a minimum of one).
 
 ## Performance
-On my hardware, libreorama playing a 16 channel sequence, with audio, has an average of `0.63%` CPU usage and `31.3MB` of RAM usage (with the vast majority being the audio file).
+On my hardware, libreorama playing a 16 channel sequence, with audio, with `ps aux` reporting `0.8%` CPU usage and `58.9MB` of RAM usage (RSS), with the vast majority being a `29.7MB` WAV audio file.
 
 ```
 MacBook Pro (15-inch, 2017)
