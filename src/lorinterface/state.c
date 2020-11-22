@@ -21,13 +21,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef LIBREORAMA_MINIFY_H
-#define LIBREORAMA_MINIFY_H
+#include "state.h"
 
-#include "frame.h"
-#include "../player/sequence.h"
+#include <string.h>
 
-int minify_frame(struct sequence_t sequence,
-                 frame_index_t frame_index);
+struct channel_output_state_t output_state[CHANNEL_BUFFER_MAX_COUNT];
 
-#endif //LIBREORAMA_MINIFY_H
+void channel_output_state_reset() {
+    memset(output_state, 0, sizeof(struct channel_output_state_t) * CHANNEL_BUFFER_MAX_COUNT);
+}

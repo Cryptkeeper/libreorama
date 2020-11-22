@@ -28,6 +28,15 @@
 
 #include "../err/lbr.h"
 
+const struct frame_t ZERO_FRAME;
+
+bool frame_is_set(struct frame_t frame) {
+    // do not return empty frames
+    // these are simply allocated, but do not contain metadata
+    // this assumes the frames have been correctly zero initialized
+    return frame.action > ZERO_FRAME.action;
+}
+
 static struct frame_t *frame_buffer = NULL;
 static size_t         frame_buffer_count;
 

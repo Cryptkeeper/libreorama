@@ -25,31 +25,33 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "../err/lbr.h"
 #include "encode.h"
+#include "state.h"
 
 enum frame_equals_mode_t {
     EQUALS_MODE_STRICT,
     EQUALS_MODE_VALUE
 };
 
-static bool frame_equals(const struct frame_t *a,
-                         const struct frame_t *b,
+static bool frame_equals(const struct frame_t a,
+                         const struct frame_t b,
                          enum frame_equals_mode_t equals_mode) {
-    if (a == NULL && b == NULL) {
+    if (!frame_is_set(a) && !frame_is_set(b)) {
         return true;
-    } else if ((a == NULL) != (b == NULL)) {
+    } else if (frame_is_set(a) != frame_is_set(b)) {
         return false;
     }
 
-    if (a->action != b->action) {
+    if (a.action != b.action) {
         return false;
     }
 
-    switch (a->action) {
+    switch (a.action) {
         case LOR_ACTION_CHANNEL_SET_BRIGHTNESS:
-            return a->set_brightness == b->set_brightness;
+            return a.set_brightness == b.set_brightness;
 
         case LOR_ACTION_CHANNEL_FADE:
             if (equals_mode == EQUALS_MODE_STRICT) {
@@ -57,7 +59,10 @@ static bool frame_equals(const struct frame_t *a,
                 // they cannot be equal and shouldn't be
                 return false;
             } else if (equals_mode == EQUALS_MODE_VALUE) {
-                return a->fade.duration == b->fade.duration && a->fade.to == b->fade.to && a->fade.from == b->fade.from;
+                return a.fade.duration == b.fade.duration && a.fade.to == b.fade.to && a.fade.from == b.fade.from;
+            } else {
+                fprintf(stderr, "unsupported equals_mode: %d\n", equals_mode);
+                return false;
             }
 
         case LOR_ACTION_CHANNEL_ON:
@@ -66,7 +71,7 @@ static bool frame_equals(const struct frame_t *a,
             return true;
 
         default:
-            fprintf(stderr, "unable to compare frame equality: %d\n", a->action);
+            fprintf(stderr, "unable to compare frame equality: %d\n", a.action);
             return false;
     }
 }
@@ -83,20 +88,21 @@ static int minify_channel_compare(const void *a,
     return channel_a->circuit - channel_b->circuit;
 }
 
-static int minify_write_frames_unoptimized(struct channel_t **channels,
+static int minify_write_frames_unoptimized(struct channel_t *channels,
                                            size_t len) {
     for (size_t i = 0; i < len; i++) {
-        struct channel_t *channel = channels[i];
+        const struct channel_t        channel = channels[i];
+        struct channel_output_state_t *state  = &output_state[i];
 
-        if (channel->next_frame != NULL) {
+        if (frame_is_set(state->pending_send_frame)) {
             int err;
-            if ((err = encode_frame(channel->unit, LOR_CHANNEL_ID, channel->circuit, *channel->next_frame))) {
+            if ((err = encode_frame(channel.unit, LOR_CHANNEL_ID, channel.circuit, state->pending_send_frame))) {
                 return err;
             }
 
             // null the current frame
             // this ensures each frame is consumed
-            channel->next_frame = NULL;
+            state->pending_send_frame = ZERO_FRAME;
         }
     }
 
@@ -104,35 +110,37 @@ static int minify_write_frames_unoptimized(struct channel_t **channels,
 }
 
 static int minify_write_frames_optimized(lor_unit_t unit,
-                                         struct channel_t **channels,
+                                         struct channel_t *channels,
                                          size_t len) {
     // iterate over each next frame
     // ensure it has not already been processed
     // then, find all channels using a copy of that frame
     // use each channel to set a bitmask
     for (size_t i = 0; i < len; i++) {
-        struct channel_t *base_channel = channels[i];
+        struct channel_output_state_t *base_state = &output_state[i];
 
-        if (base_channel->next_frame == NULL) {
+        if (!frame_is_set(base_state->pending_send_frame)) {
             continue;
         }
 
-        const struct frame_t base_frame_copy = *base_channel->next_frame;
-        lor_channel_t        channel_mask    = 0;
+        const struct frame_t base_frame_copy = base_state->pending_send_frame;
+
+        lor_channel_t channel_mask = 0;
 
         // find all similar values of this frame
         // null their frames_diff entry since the channel will be set in the mask
         for (size_t x = 0; x < len; x++) {
-            struct channel_t *other_channel = channels[x];
+            const struct channel_t        other_channel = channels[x];
+            struct channel_output_state_t *other_state  = &output_state[x];
 
-            if (frame_equals(base_channel->next_frame, other_channel->next_frame, EQUALS_MODE_VALUE)) {
+            if (frame_equals(base_state->pending_send_frame, other_state->pending_send_frame, EQUALS_MODE_VALUE)) {
                 // set the channel's circuit in the bitmask
-                channel_mask |= (1u << other_channel->circuit);
+                channel_mask |= (1u << other_channel.circuit);
 
                 // this channel no longer needs to write its frame individually
                 // it has been merged into the current channel_mask
                 // this is what ultimately consumes each next_frame value
-                other_channel->next_frame = NULL;
+                other_state->pending_send_frame = ZERO_FRAME;
             }
         }
 
@@ -149,7 +157,7 @@ static int minify_write_frames_optimized(lor_unit_t unit,
     return 0;
 }
 
-static bool minify_channels_fit_bitmask(const struct channel_t **channels,
+static bool minify_channels_fit_bitmask(const struct channel_t *channels,
                                         size_t len) {
     static const size_t max_length = sizeof(lor_channel_t) * 8;
 
@@ -159,7 +167,7 @@ static bool minify_channels_fit_bitmask(const struct channel_t **channels,
 
     // ensure that each circuit id fits in the bitmask
     for (size_t i = 0; i < len; i++) {
-        if (channels[i]->circuit >= max_length) {
+        if (channels[i].circuit >= max_length) {
             return false;
         }
     }
@@ -168,8 +176,8 @@ static bool minify_channels_fit_bitmask(const struct channel_t **channels,
 }
 
 static int minify_unit(lor_unit_t unit,
-                       struct channel_t **channels,
-                       struct frame_t **frames,
+                       struct channel_t *channels,
+                       struct frame_t *upcoming_frames,
                        size_t len) {
     int return_code = 0;
 
@@ -177,16 +185,16 @@ static int minify_unit(lor_unit_t unit,
     size_t no_change_count = 0;
 
     for (size_t i = 0; i < len; i++) {
-        const struct frame_t *previous_frame = channels[i]->last_sent_frame;
-        struct frame_t       *next_frame     = frames[i];
+        struct channel_output_state_t *state         = &output_state[i];
+        struct frame_t                upcoming_frame = upcoming_frames[i];
 
         // detect matching frames
         //  include a OR condition for next_frame == NULL, this enables frames switching to NULL value
         //  from being considered "different" frames when NULL frames are effectively no-op values
-        if (frame_equals(previous_frame, next_frame, EQUALS_MODE_STRICT) || next_frame == NULL) {
+        if (frame_equals(state->last_sent_frame, upcoming_frame, EQUALS_MODE_STRICT) || !frame_is_set(upcoming_frame)) {
             no_change_count++;
         } else {
-            channels[i]->next_frame = next_frame;
+            state->pending_send_frame = upcoming_frame;
         }
     }
 
@@ -195,7 +203,7 @@ static int minify_unit(lor_unit_t unit,
         goto minify_unit_return;
     }
 
-    const bool fits_in_mask = minify_channels_fit_bitmask((const struct channel_t **) channels, len);
+    const bool fits_in_mask = minify_channels_fit_bitmask(channels, len);
 
     if (fits_in_mask) {
         return_code = minify_write_frames_optimized(unit, channels, len);
@@ -213,7 +221,7 @@ static int minify_unit(lor_unit_t unit,
     // ensure all frame differences are null
     // otherwise this indicates failure to consume all frames
     for (size_t i = 0; i < len; i++) {
-        if (channels[i]->next_frame != NULL) {
+        if (frame_is_set(output_state[i].pending_send_frame)) {
             return_code = LBR_MINIFY_EUNCONDATA;
             goto minify_unit_return;
         }
@@ -223,83 +231,63 @@ static int minify_unit(lor_unit_t unit,
     // mark all channels as non-dirty
     // update last sent frame value to new frame value
     for (size_t i = 0; i < len; i++) {
-        channels[i]->last_sent_frame = frames[i];
+        output_state[i].last_sent_frame = upcoming_frames[i];
     }
 
     return return_code;
 }
 
-// todo: reduce allocations
-int minify_frame(const struct sequence_t *sequence,
+static struct channel_t channel_sort_buffer[CHANNEL_BUFFER_MAX_COUNT];
+static struct frame_t   upcoming_frames_buffer[CHANNEL_BUFFER_MAX_COUNT];
+
+int minify_frame(struct sequence_t sequence,
                  frame_index_t frame_index) {
-    int return_code = 0;
-
-    // channels_count will never be 0 at this point
-    //  it is checked by player.c prior to playback
-    // this check is included to appease Clang-Tidy warnings
-    if (channel_buffer_index == 0) {
-        return LBR_SEQUENCE_ENOCHANNELS;
-    }
-
     // sort channels by unit+circuit in descending order
     // this allows a iteration loop to easily detect unit "breaks"
-    struct channel_t **channels = malloc(sizeof(struct channel_t *) * channel_buffer_index);
+    memcpy(channel_sort_buffer, channel_buffer, sizeof(struct channel_t) * channel_buffer_index);
 
-    if (channels == NULL) {
-        return LBR_EERRNO;
-    }
-
-    for (size_t i = 0; i < channel_buffer_index; i++) {
-        channels[i] = &channel_buffer[i];
-    }
-
-    qsort(channels, channel_buffer_index, sizeof(struct channel_t *), minify_channel_compare);
+    qsort(channel_sort_buffer, channel_buffer_index, sizeof(struct channel_t), minify_channel_compare);
 
     // create an array of the new frame values
     // this is derived from the sorted channels array so indexes match
-    struct frame_t **frames = malloc(sizeof(struct frame_t *) * channel_buffer_index);
+    memset(upcoming_frames_buffer, 0, sizeof(struct frame_t) * channel_buffer_index);
 
-    if (frames == NULL) {
-        return_code = LBR_EERRNO;
-        goto minify_frame_return;
-    }
-
-    for (size_t i = 0; i < channel_buffer_index; i++) {
-        frames[i] = channel_get_frame(*channels[i], sequence->frame_count, frame_index);
+    if (frame_index < sequence.frame_count) {
+        for (size_t i = 0; i < channel_buffer_index; i++) {
+            upcoming_frames_buffer[i] = channel_sort_buffer[i].frame_data[frame_index];
+        }
     }
 
     // iterate over channels
     // each time the unit changes, push that grouping into #minify_unit
     // start at index 1 to avoid underflowing 0
-    size_t last_group_index = 0;
+    size_t last_break = 0;
 
     for (size_t i = 1; i < channel_buffer_index; i++) {
-        const struct channel_t *last_channel = channels[i - 1];
+        const struct channel_t last_channel = channel_sort_buffer[i - 1];
 
-        if (last_channel->unit != channels[i]->unit) {
-            int err;
-            if ((err = minify_unit(last_channel->unit, channels + last_group_index, frames + last_group_index, i - last_group_index))) {
-                return_code = err;
-                goto minify_frame_return;
-            }
-
-            last_group_index = i;
+        if (last_channel.unit == channel_sort_buffer[i].unit) {
+            continue;
         }
+
+        int err;
+        if ((err = minify_unit(last_channel.unit, &channel_sort_buffer[last_break], &upcoming_frames_buffer[last_break], i - last_break))) {
+            return err;
+        }
+
+        last_break = i;
     }
+
+    // TODO: ensure if last channel is different id, it is always consumed
 
     // if last_group_index == 0 and channels length > 0
     // then all channels are in a single unit group
-    if (last_group_index == 0 && channel_buffer_index > 0) {
+    if (last_break == 0 && channel_buffer_index > 0) {
         int err;
-        if ((err = minify_unit(channels[0]->unit, channels, frames, channel_buffer_index))) {
-            return_code = err;
-            goto minify_frame_return;
+        if ((err = minify_unit(channel_sort_buffer[0].unit, channel_sort_buffer, upcoming_frames_buffer, channel_buffer_index))) {
+            return err;
         }
     }
 
-    minify_frame_return:
-    free(channels);
-    free(frames);
-
-    return return_code;
+    return 0;
 }

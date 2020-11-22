@@ -30,6 +30,7 @@
 #include "../err/lbr.h"
 #include "../lorinterface/encode.h"
 #include "../lorinterface/minify.h"
+#include "../lorinterface/state.h"
 #include "../file.h"
 #include "../interval.h"
 #include "../seqtypes/lormedia.h"
@@ -274,7 +275,7 @@ int player_start(struct player_t *player,
 
         // write the current frame index into the frame_buf
         // pass an interrupt call back to the parent
-        if ((err = minify_frame(&current_sequence, frame_index))) {
+        if ((err = minify_frame(current_sequence, frame_index))) {
             return err;
         }
 
@@ -319,6 +320,7 @@ int player_start(struct player_t *player,
     }
 
     channel_buffer_reset();
+    channel_output_state_reset();
     frame_buffer_free();
 
     player_advance(player);

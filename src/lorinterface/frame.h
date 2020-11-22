@@ -37,6 +37,10 @@ struct frame_t {
     };
 } __attribute__((packed));
 
+extern const struct frame_t ZERO_FRAME;
+
+bool frame_is_set(struct frame_t frame);
+
 typedef unsigned short frame_index_t;
 
 int frame_buffer_request(frame_index_t count,

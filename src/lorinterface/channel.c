@@ -27,25 +27,6 @@
 
 #include "../err/lbr.h"
 
-struct frame_t *channel_get_frame(struct channel_t channel,
-                                  frame_index_t frame_count,
-                                  frame_index_t index) {
-    if (index >= frame_count) {
-        return NULL;
-    }
-
-    struct frame_t *frame = &channel.frame_data[index];
-
-    // do not return empty frames
-    // these are simply allocated, but do not contain metadata
-    // frames are allocated with calloc, so action is always initialized to 0
-    if (frame->action == 0) {
-        return NULL;
-    } else {
-        return frame;
-    }
-}
-
 struct channel_t channel_buffer[CHANNEL_BUFFER_MAX_COUNT];
 size_t           channel_buffer_index;
 
