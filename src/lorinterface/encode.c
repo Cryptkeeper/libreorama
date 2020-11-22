@@ -28,11 +28,7 @@
 
 #include "../err/lbr.h"
 
-static lor_brightness_t encode_brightness(unsigned char brightness) {
-    return lor_brightness_curve_squared((float) brightness / 255.0f);
-}
-
-#define ENCODE_BUFFER_MAX_LENGTH 4096
+#define LORENCODE_BRIGHTNESS(brightness) ((lor_brightness_curve_squared((float) brightness / 255.0f)))
 
 unsigned char encode_buffer[ENCODE_BUFFER_MAX_LENGTH];
 size_t        encode_buffer_index;
@@ -63,10 +59,10 @@ int encode_frame(lor_unit_t unit,
 
     switch (frame.action) {
         case LOR_ACTION_CHANNEL_SET_BRIGHTNESS:
-            written = lor_write_channel_set_brightness(unit, channel_type, channel, encode_brightness(frame.fade.to), encode_buffer_write_index());
+            written = lor_write_channel_set_brightness(unit, channel_type, channel, LORENCODE_BRIGHTNESS(frame.fade.to), encode_buffer_write_index());
             break;
         case LOR_ACTION_CHANNEL_FADE:
-            written = lor_write_channel_fade(unit, channel_type, channel, encode_brightness(frame.fade.from), encode_brightness(frame.fade.to), frame.fade.duration, encode_buffer_write_index());
+            written = lor_write_channel_fade(unit, channel_type, channel, LORENCODE_BRIGHTNESS(frame.fade.from), LORENCODE_BRIGHTNESS(frame.fade.to), frame.fade.duration, encode_buffer_write_index());
             break;
         case LOR_ACTION_CHANNEL_ON:
         case LOR_ACTION_CHANNEL_SHIMMER:
