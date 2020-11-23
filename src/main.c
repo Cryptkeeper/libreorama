@@ -221,10 +221,26 @@ int main(int argc,
     // this is managed by player directly to reduce scoping
     // #player_next will return true as long as there is a sequence to play
     // false values will break the loop and cleanly terminate the program
-    while (player_has_next(&player)) {
+    char *next_sequence_file = NULL;
+
+    // FIXME: safely handle empty show file
+
+    while (1) {
+        if ((err = player_next_sequence(&player, &next_sequence_file))) {
+            lbr_perror(err, "failed to read next sequence");
+            return 1;
+        }
+
+        // test if next_sequence_file is NULL
+        //  if NULL, and err is 0, the player has hit the end of the show file
+        if (next_sequence_file == NULL) {
+            printf("end of show!\n");
+            return 0;
+        }
+
         // load and buffer the sequence
         // this will internally block for playback
-        if ((err = player_start(&player, handle_frame_interrupt, time_correction_ms))) {
+        if ((err = player_start(handle_frame_interrupt, time_correction_ms, next_sequence_file))) {
             lbr_perror(err, "failed to start player");
             return 1;
         }

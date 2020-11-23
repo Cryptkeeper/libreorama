@@ -33,6 +33,11 @@ static void timespec_sub(struct timespec start,
     out->tv_sec  = stop.tv_sec - start.tv_sec;
     out->tv_nsec = stop.tv_nsec - start.tv_nsec;
 
+    if (out->tv_nsec == INTERVAL_NS_IN_S) {
+        out->tv_nsec = 0;
+        out->tv_sec++;
+    }
+
     if (out->tv_nsec < 0) {
         out->tv_sec--;
         out->tv_nsec += INTERVAL_NS_IN_S;

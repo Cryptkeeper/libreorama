@@ -26,10 +26,7 @@
 
 #include <stdio.h>
 
-void freadlines_free(char **lines,
-                     size_t len);
-
-char **freadlines(FILE *file,
-                  size_t *len);
+int file_read_line(FILE *file,
+                   char **out);
 
 #endif //LIBREORAMA_FILE_H

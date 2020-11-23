@@ -23,70 +23,48 @@
  */
 #include "file.h"
 
-#include <stdlib.h>
 #include <string.h>
 
-void freadlines_free(char **lines,
-                     size_t len) {
-    for (size_t i = 0; i < len; i++) {
-        free(lines[i]);
-    }
+#include "err/lbr.h"
 
-    free(lines);
-}
+#define FILE_LINE_BUFFER_MAX_LENGTH 256
 
-char **freadlines(FILE *file,
-                  size_t *len) {
-    char   *cur_line;
-    size_t cur_line_len;
+// this is unsafe, but it avoids dynamic allocations
+//  assume any single line, each pointing to a file, is no more than 256 bytes
+// this is a reused, singleton buffer and assumes no multi-threaded access
+static char file_line_buffer[FILE_LINE_BUFFER_MAX_LENGTH];
 
-    char   **lines   = NULL;
-    size_t lines_len = 0;
+int file_read_line(FILE *file,
+                   char **out) {
+    char   *read_line = NULL;
+    size_t read_len   = 0;
 
-    while ((cur_line = fgetln(file, &cur_line_len)) != NULL) {
+    if ((read_line = fgetln(file, &read_len)) != NULL) {
+        // return an error if the read_len is too long for the buffer
+        // it needs to be <= FILE_LINE_BUFFER_MAX_LENGTH - 1 to ensure it is null terminated
+        if (read_len + 1 > FILE_LINE_BUFFER_MAX_LENGTH) {
+            return LBR_FILE_EPATHTOOLONG;
+        }
+
         // man 3 fgetln notes that the line may include a newline char at the end
         // strip any newline terminator and manually resize to introduce a null terminator
-        if (cur_line[cur_line_len - 1] == '\n') {
-            cur_line_len--;
+        if (read_line[read_len - 1] == '\n') {
+            read_len--;
         }
 
-        char *buf = strndup(cur_line, cur_line_len);
+        // copy the read_line into the reused buffer
+        // the pointer returned by fgetln does not persist
+        strncpy(file_line_buffer, read_line, read_len);
 
-        if (buf == NULL) {
-            // failed to allocate buffer for string
-            // free anything that has been allocated thus far
-            freadlines_free(lines, lines_len);
+        // ensure the copied string is null terminated
+        file_line_buffer[read_len] = 0;
 
-            return NULL;
-        }
+        // copy the final state to the out params
+        *out = &file_line_buffer[0];
 
-        // realloc lines to ensure capacity for incoming cur_line_null
-        char **lines_realloc = realloc(lines, sizeof(char *) * (lines_len + 1));
-
-        if (lines_realloc == NULL) {
-            // explicitly free the newly created buffer
-            // this won't be freed by #freadlines_free since it isn't inserted
-            free(buf);
-
-            // failed to reallocate larger array
-            // free anything that has been allocated thus far
-            freadlines_free(lines, lines_len);
-
-            return NULL;
-        } else {
-            // copy lines_realloc back to lines
-            // this ensures lines is not overwritten if realloc fails
-            // otherwise the lines reference is lost and will leak
-            lines = lines_realloc;
-        }
-
-        lines[lines_len] = buf;
-        lines_len++;
+        return 0;
     }
 
-    // successfully read all lines, modify external state
-    // this does not check against ferror
-    *len = lines_len;
-
-    return lines;
+    // assume ferror/feof returned a non-zero value
+    return LBR_EERRNO;
 }

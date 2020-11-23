@@ -30,9 +30,8 @@
 #include "sequence.h"
 
 struct player_t {
-    char   **sequence_files;
-    size_t sequence_files_cnt;
-    int    show_loop_count;
+    FILE *show_file;
+    int  show_loop_count;
 };
 
 typedef int (*player_frame_interrupt_t)(unsigned short step_time_ms);
@@ -40,11 +39,12 @@ typedef int (*player_frame_interrupt_t)(unsigned short step_time_ms);
 int player_init(struct player_t *player,
                 const char *show_file_path);
 
-bool player_has_next(struct player_t *player);
+int player_next_sequence(struct player_t *player,
+                         char **next_sequence);
 
-int player_start(struct player_t *player,
-                 player_frame_interrupt_t frame_interrupt,
-                 unsigned short time_correction_ms);
+int player_start(player_frame_interrupt_t frame_interrupt,
+                 unsigned short time_correction_ms,
+                 char *sequence_file_path);
 
 void player_free(const struct player_t *player);
 

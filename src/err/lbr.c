@@ -47,6 +47,9 @@ char *lbr_error_string(int err) {
         case LBR_ESPERR:
             return "LBR_ESPERR (libserialport error)";
 
+        case LBR_FILE_EPATHTOOLONG:
+            return "LBR_FILE_EPATHTOOLONG (sequence file path too long)";
+
         case LBR_SEQUENCE_ENOFRAMES:
             return "LBR_SEQUENCE_ENOFRAMES (sequence contains no frames)";
         case LBR_SEQUENCE_ENOCHANNELS:
@@ -60,8 +63,6 @@ char *lbr_error_string(int err) {
             return "LBR_PLAYER_EUNSUPEXT (unsupported file extension)";
         case LBR_PLAYER_EBADEXT:
             return "LBR_PLAYER_EBADEXT (bad file extension)";
-        case LBR_PLAYER_ESHOWEMPTY:
-            return "LBR_PLAYER_ESHOWEMPTY (show is empty)";
 
         case LBR_ENCODE_EBUFFERTOOSMALL:
             return "LBR_ENCODE_EBUFFERTOOSMALL (encoding buffer is too small, increase ENCODE_BUFFER_MAX_LENGTH)";
