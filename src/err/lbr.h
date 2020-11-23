@@ -37,14 +37,15 @@
 
 #define LBR_PLAYER_EUNSUPEXT        9
 #define LBR_PLAYER_EBADEXT          10
+#define LBR_PLAYER_EEMPTYSHOW       11
 
-#define LBR_ENCODE_EBUFFERTOOSMALL  11
-#define LBR_ENCODE_EUNSUPACTION     12
+#define LBR_ENCODE_EBUFFERTOOSMALL  12
+#define LBR_ENCODE_EUNSUPACTION     13
 
-#define LBR_LOADER_EMALFDATA        13
-#define LBR_LOADER_EUNSUPDATA       14
+#define LBR_LOADER_EMALFDATA        14
+#define LBR_LOADER_EUNSUPDATA       15
 
-#define LBR_MINIFY_EUNCONDATA       15
+#define LBR_MINIFY_EUNCONDATA       16
 
 void lbr_perror(int err,
                 const char *msg);

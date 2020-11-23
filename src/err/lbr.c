@@ -63,6 +63,8 @@ char *lbr_error_string(int err) {
             return "LBR_PLAYER_EUNSUPEXT (unsupported file extension)";
         case LBR_PLAYER_EBADEXT:
             return "LBR_PLAYER_EBADEXT (bad file extension)";
+        case LBR_PLAYER_EEMPTYSHOW:
+            return "LBR_PLAYER_EEMPTYSHOW (show file is empty)";
 
         case LBR_ENCODE_EBUFFERTOOSMALL:
             return "LBR_ENCODE_EBUFFERTOOSMALL (encoding buffer is too small, increase ENCODE_BUFFER_MAX_LENGTH)";

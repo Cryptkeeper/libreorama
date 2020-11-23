@@ -148,13 +148,22 @@ int player_init(struct player_t *player,
     has_al_source = true;
 
     // open the show file for reading
-    FILE *show_file = fopen(show_file_path, "rb");
+    player->show_file = fopen(show_file_path, "rb");
 
-    if (show_file == NULL) {
+    if (player->show_file == NULL) {
         return LBR_EERRNO;
     }
 
-    player->show_file = show_file;
+    // seek to the end of the show_file, record the position, rewind the stream position
+    // this is used to check the file's length to prevent loading empty files
+    // files with multiple empty lines can cause this check to fail
+    fseek(player->show_file, 0, SEEK_END);
+    const long file_pos = ftell(player->show_file);
+    rewind(player->show_file);
+
+    if (file_pos == 0) {
+        return LBR_PLAYER_EEMPTYSHOW;
+    }
 
     return 0;
 }
@@ -178,8 +187,6 @@ int player_next_sequence(struct player_t *player,
         // end of show!
         // mark next_sequence as NULL to specify to caller that it is empty
         *next_sequence = NULL;
-
-        return 0;
     }
 
     return 0;

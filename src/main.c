@@ -225,7 +225,7 @@ int main(int argc,
 
     // FIXME: safely handle empty show file
 
-    while (1) {
+    while (true) {
         if ((err = player_next_sequence(&player, &next_sequence_file))) {
             lbr_perror(err, "failed to read next sequence");
             return 1;
@@ -245,6 +245,4 @@ int main(int argc,
             return 1;
         }
     }
-
-    return 0;
 }
