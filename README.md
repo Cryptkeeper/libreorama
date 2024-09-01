@@ -1,6 +1,8 @@
 # libreorama
 libreorama is a free, MIT licensed sequence player program written in C99. It is designed as a minimized, CLI alternative to the player software found in [Light-O-Rama's ShowTime Sequencing Suite](http://www1.lightorama.com/showtime-sequencing-suite/).
 
+**Archived in favor of my work on [fplayer](https://github.com/Cryptkeeper/fplayer)**
+
 ## Why?
 Light-O-Rama's ShowTime Sequencing Suite is Windows only and requires a mouse/keyboard. As a result, users typically use a laptop or desktop computer to control Light-O-Rama hardware. This can be very inconvenient to deploy and manage remotely, especially for temporary installations. Alternatively, you can buy their [Director hardware](http://store.lightorama.com/g3mp3director.html), but it is expensive and prevents customization and remote management altogether.
 
